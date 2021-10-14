@@ -1,0 +1,78 @@
+from nacl.encoding import Base64Encoder
+from nacl.signing import SigningKey
+from nacl.signing import VerifyKey
+
+class RunDiem(process):
+    def setup(config,test_case,parent):
+        self.nclients = config['nclients']
+        self.ncrequest = config['ncrequest']
+        self.nctimeout = config['nctimeout']
+        self.nvalidators = config['nvalidators']
+        self.vroundtriptime = config['vroundtriptime']
+
+    def run():
+
+        #Generate keys for distribution
+        prcl=[0]*nclients
+        pubcl=[0]*nclients
+        prval=[0]*nvalidators
+        pubval=[0]*nvalidators
+
+        for i in range(nclients):
+            prcl[i] = SigningKey.generate()
+            pubcl[i] = prcl[i].verify_key.encode(encoder=Base64Encoder)
+
+        for i in range(nvalidators):
+            prval[i] = SigningKey.generate()
+            pubval[i] = prval[i].verify_key.encode(encoder=Base64Encoder)
+        
+
+        #Start new clients and validators
+        validators = new(validator.Validator,num = nvalidators)
+        clients = new(client.Client, num=nclients)
+
+        for index,p in enumerate(validators):
+            setup(p,(prval[index],pubval,pubcl,test_case,vroundtriptime))
+
+        for index,p in enumerate(clients):
+            setup(p,(prcl[index],pubval,validators,ncrequest,nctimeout,index,nvalidators))
+        start(validators)
+        start(clients)
+        
+        await(each(c in clients, has=received(('Done',), from_=clients)))
+        output("Done with all requests on all clients....Exiting")
+        
+        return None
+
+
+
+
+def main():
+    config(channel = Fifo, clock='Lamport')
+    configs = [{'nclients':3, 'ncrequest':3, 'nctimeout': 1, 'nservers' = 2,  'nsroundtriptime' = 5}]
+    for index,value in enumerate(configs):
+        p = new(RunDiem)
+        setup(p,(value,index,p))
+        start(p)
+
+#import ping
+
+#class RunPingPong(process):
+#    def setup(config):
+#        self.nrounds = config['nrounds']
+#        self.npings = config['npings']
+#    
+#    def run():
+#        pong = new(ping.Pong, [nrounds * npings], num= 1)
+#        pings = new(ping.Ping, num= npings)
+#        setup(pings, (pong, nrounds))
+#        start(pong)
+#        start(pings)
+
+#def main():
+#    config(clock='Lamport')
+#    configs = [{'nrounds':3, 'npings':3}, {'nrounds': 1, 'npings':2}]
+#    for config in configs:
+#        p = new(RunPingPong)
+#        setup(p,(config,))
+#        start(p)

@@ -1,0 +1,17 @@
+class Client(process):
+    def setup(prkey, pubval, validators,nrequests,timeout,clientno,nvalidators): pass
+
+    def run():
+        req = 0
+        while req < nrequests:
+            commited={}
+            send((prkey.sign('ClientRequest+' + str(req) + "+" +  str(clientno) + "-" + str(req)),), to=validators)
+            if await(comitted.size()==(nvalidators + 1)):
+                comitted.clear()
+                req=req+1        
+            elif timeout(timeout/1000):
+                output("Retrying same command")
+        send(('Done',), to=parent())
+
+    def receive(msg= ('CommitReply'),from_=p):
+        comitted.add(p)
