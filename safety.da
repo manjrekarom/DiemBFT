@@ -1,0 +1,48 @@
+from typing import List
+
+class SafetyPrivate:
+    _private_key: str
+    _public_keys: List[str]
+    _highest_vote_round: int
+    _highest_qc_round: int
+
+    def increase_highest_vote_round(self, round):
+        self._highest_vote_round = max(round, self._highest_vote_round)
+
+    def update_highest_qc_round(self, qc_round):
+        self._highest_qc_round = max(qc_round, self._highest_qc_round)
+
+    def consecutive(self, block_round, round):
+        # TODO: CHECK
+        return round + 1 == block_round
+
+    def safe_to_extend(self, block_round, qc_round, tc: TC):
+        return self.consecutive(block_round, tc.round) and \
+            (qc_round >= max(tc.tmo_high_qc_rounds)) 
+
+    def safe_to_vote(self, block_round, qc_round, tc: TC):
+        if block_round <= max(self._highest_vote_round, qc_round):
+            return False
+        return self.consecutive(block_round, qc_round) and \
+            self.safe_to_extend(block_round, qc_round, tc)
+
+    def safe_to_timeout(self, round, qc_round, tc):
+        if qc_round < self._highest_qc_round and \
+            round <= max(self._highest_vote_round - 1, qc_round):
+            return False
+        return self.consecutive(round, qc_round) and self.consecutive(round, tc.round)
+
+    def commit_state_id_candidate(self, block_round, qc):
+        if self.consecutive(block_round, qc.vote_info.round):
+            return Ledger.pending_state(qc.id)
+        else:
+            return None
+
+
+class SafetyPublic:
+    def make_vote(b, last_tc):
+        qc_round = b.qc.vote_info.round
+        if valid_signatures(b, last_tc) and safe_to_vote(b.round, qc_round, last_tc):
+            update_highest_qc_round(qc_round)
+            increase_highest_vote_round(b.round)
+            vote_info = VoteInfo()
