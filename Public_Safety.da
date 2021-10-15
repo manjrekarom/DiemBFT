@@ -1,0 +1,54 @@
+
+import logging
+from Block_Tree import BlockTree
+from Ledger import Ledger
+from typing import Any
+
+
+class SafetyPrivate():
+
+    def __init__(self):
+        self.private_key = None  # Own private key
+        self.public_keys = []  # public keys of all validators
+        self.highest_vote_round = 0  # initial;ly 0
+        self.highest_qc_round = 0
+
+    def increase_highest_vote_round(self, round):
+        # commit not to vote in rounds that are lower than round
+        self.highest_vote_round = max(round, self.highest_vote_round)
+
+    def safe_to_timeout(self, round, qc_round, tc):
+        pass
+
+
+class SafetyPublic():
+
+    def __init__():
+        pass
+
+    def make_vote(self, b, last_tc):
+        logger = logging.getLogger()
+        qc_round = b.qc.vote_info.round
+        if SafetyPrivate.safe_to_vote(b.round, qc_round, last_tc):
+            SafetyPrivate.update_highest_qc_round(qc_round)  # Protect the QC round
+            SafetyPrivate.increase_highest_vote_round(b.round)  # Don't vote again in this or lower round
+
+            # VoteInfo contains the info about the  potential QC info with the ids and rounds of the parent QC
+
+            vote_info = BlockTree.VoteInfo((b.id, b.round), (b.qc.vote_info.id, b.qc.vote_info.round), Ledger.pending_state(b.id))
+            logger.info(vote_info)
+
+            ledger_commit_info = BlockTree.LedgerCommitInfo(SafetyPrivate.commit_state_id_candidate(b.round, b.qc), hash(vote_info))
+            logger.info(ledger_commit_info)
+
+            return BlockTree.VoteMsg(vote_info, ledger_commit_info, BlockTree.high_commit_qc)
+        return None
+
+    """ def make_timout(round, high_qc, last_tc):
+        qc_round = high_qc.vote_info.round
+        if valid_signatures(high_qc, last_tc) and SafetyPrivate.safe_to_timeout(round, qc_round, last_tc):
+            SafetyPrivate.increase_highest_vote_round(round)  # Stop voting for round
+            return TimeoutInfo (round, high_qc)
+        return None """
+
+

@@ -1,0 +1,71 @@
+
+import logging
+from collections import namedtuple
+from Ledger import Ledger
+
+
+class BlockTree():
+    VoteInfo = namedtuple('Voteinfo', 'id round parent_id parent_round exec_state_id')
+    LedgeCommitInfo = namedtuple('ledger_commit_info', 'commit_state_id vote_info_hash')
+    VoteMsg = namedtuple('VoteMsg', 'vote_info ledger_commit_info high_commit_qc sender signature')
+    QC = namedtuple('QC', 'vote_info', 'ledger_commit_info signatures author author_signature')
+    Block = namedtuple('Block', 'author round payload qc id')
+    # vote_msg = VoteMsg(hjbv, jhvhjb, iuhg, u)
+
+    # Default Constructor
+
+    def __init__(self):
+        self.f = 0
+        self.pending_block_tree = None  # tree of blocks pending commitment or building speculative trees of states
+        self.pending_votes = None  # collected votes per block indexed by their LedgerInfo hash
+        self.high_qc = self.QC()  # highest known QC
+        self.high_commit_qc = None  # h
+        
+    # Process the Quorum Certificate to commit the blocks
+
+    def process_qc(self, qc):
+        logger = logging.getLogger()
+        if (qc.ledger_commit_info.commit_state_id) is not None:  # If no commit happened when aggregrating happends from Pending_State to QC of the 
+            Ledger.commit(qc.vote_info.parent_id)  # Commit the pending prefix of the parents block
+            self.pending_block_tree.prune(qc.vote_info.parent_id)  # parent id becomes the new root of pending and prune the other branches
+
+            self.high_commit_qc = max(qc, self.high_commit_qc)  # make a new commited Quorum certificate to synchronise to the Committed blocks
+            logger.info("high_commit_qc is: ", self.high_commit_qc)
+        logger.info("high_qc is: ", self.high_qc)
+        self.high_qc = max(qc, self.high_qc)  # get the new Highest known certified Quorum certificate
+
+    # Execute and Insert a block b 
+
+    def execute_and_insert(self, b): 
+        Ledger.speculate(b.qc.vote_info.id, b.id, b.payload)  # Apply TXNS speculatively; txns is payload
+        self.pending_block_tree.add(b)  # Adding the block to the pending tree as there is 1:1 mapping so added here also along with ledger
+
+    # Process the votes to convert from Pending votes to QC
+
+    def process_vote(self, v):  # v -> VoteMsg
+        logger = logging.getLogger()
+        self.process_qc(v.high_commit_qc)  # H ighest comnmiitted QC of the vote message and process it
+        vote_idx = hash(v.ledger_commit_info)  # return a hash value of the commited ledger -???(Doubt)
+        self.pending_votes[vote_idx] = self.pending_votes(vote_idx) + v.signature  # Add the message signature to the pending votes which is a hash (Doubt)
+
+        # if len(self.pending_votes(vote_idx))==(2(self.f)+1): # Doubt here
+
+        if len(self.pending_votes(vote_idx)) == (4):
+            qc = self.QC()
+            qc.vote_info = v.vote_info
+            qc.votes = self.pending_votes[vote_idx]
+            logger.info(" qc is: ", qc)
+            return qc
+
+        return None
+
+    def generate_block(self, txns, current_round):
+        logger = logging.getLogger()
+        b = self.Block()
+        b.author = u                      # user will be here
+        b.round = current_round
+        b.payload = txns
+        b.qc = self.high_qc
+        b.id = hash(b.author + b.round + b.payload + b.qc.vote_info.id + b.qc.signatures)
+        logger.info("b is: ", b)
+        return b
