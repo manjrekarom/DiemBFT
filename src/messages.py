@@ -35,5 +35,6 @@ class ProposalMsg:
     high_commit_qc: QC  # QC to synchronise then committed blocks
     # TODO: might need to change to bytes
     signature: str
+    sender : str
 
 

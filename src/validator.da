@@ -1,15 +1,19 @@
 #import Pacemaker
 #import Block_Tree
 # #import 
+from os import umask
 import block
 from src import pacemaker
 from src import leader_election 
+from block import BlockTree
+from safety import SafetyPrivate
 
 
 class Validator(process):
 
-   def setup (servers):
+    def setup (servers):
         #self.broadcast = servers
+        self.u=None
 
 
     def process_certificate_qc(qc):
@@ -17,38 +21,39 @@ class Validator(process):
         leader_election.LeaderElection.update_leaders(qc)
         pacemaker.Pacemaker.advance_round(qc.vote_info.round)
     
-    def process_proposal_msg(P):
-        #process_certificate_qc(P.block.qc)
-        #process_certificate_qc(P.block.qc)
-        #Pacemaker.advance_round_tc(P.last_round_tc)
-        round = pacemaker.current_round
-        leader= leader_election.get_leader(current_round)
-        if(P.block.round!=round or P.sender!=leader or P.block.author!= leader):
+    def process_proposal_msg(proposal_msg):
+        process_certificate_qc(proposal_msg.block.qc)
+        process_certificate_qc(proposal_msg.high_commit_qc.qc)
+        pacemaker.Pacemaker.advance_round_tc(proposal_msg.last_round_tc)
+        round = pacemaker.Pacemaker.current_round
+        leader= leader_election.get_leader(round)
+        if(proposal_msg.block.round!=round or proposal_msg.sender!=leader or proposal_msg.block.author!= leader):
             return
-        Block_Tree.execute_and_insert(P)
-        vote_msg = Safety.make_vote(P.block,P.last_round_tc)
-        if (vote_msg!=None):
-            send(vote_msg, to=LeaderElection.get_leader(current_round))
+        BlockTree.execute_and_insert(proposal_msg)
+        vote_msg = SafetyPrivate.make_vote(proposal_msg.block,proposal_msg.last_round_tc)
+        if (vote_msg is not None):
+            send (vote_msg, to = leader_election.LeaderElection.get_leader(round+1))
         
-    def process_timeout_msg(M):
-        #process_certificate_qc(M.tmo_info.high_qc)
-        #process_certificate_qc(M.high_commit_qc)
-        PaceMaker.advance_round_tc(M.last_round_tc)
-        tc = Pacemaker.process_remote_timeout(M)
+    
+    def process_timeout_msg(timeout_msg):
+        process_certificate_qc(timeout_msg.tmo_info.high_qc)
+        process_certificate_qc(timeout_msg.high_commit_qc)
+        pacemaker.Pacemaker.advance_round_tc(timeout_msg.last_round_tc)
+        tc = pacemaker.Pacemaker.process_remote_timeout(timeout_msg)
         if tc != None:
-            Pacemaker.advance_round(tc)
+            pacemaker.Pacemaker.advance_round(tc)
             process_new_round_event(tc)
     
-    def process_vote_msg(M):
-        qc= Block_Tree.process_vote(M)
-        if qc!=None:
+    def process_vote_msg(vote_msg):
+        qc= block.BlockTree.process_vote(vote_msg)
+        if qc is not None:
             process_certificate_qc(qc)
             process_new_round_event(None)
     
     def process_new_round_event(last_tc):
-        u = LeaderElection.get_leader(Pacemaker.current_round)
-        if(u==self.id):
-            b =  Block_Tree.generate_block(MemPool.get_transactions(),PaceMaker.current_round)
+        leader = leader_election.LeaderElection.get_leader(pacemaker.Pacemaker.current_round)
+        if(leader==id):
+            block =  BlockTree.generate_block(MemPool.get_transactions(),pacemaker.PaceMaker.current_round)
             send(vote_msg, to=broadcast)
 
     def run():

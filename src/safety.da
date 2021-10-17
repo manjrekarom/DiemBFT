@@ -1,9 +1,9 @@
 from typing import List
-from src.block import QC, Block, BlockTree, LedgerCommitInfo, VoteInfo, VoteMsg
-from src.crypto import hasher, sign, valid_signatures
-from src.info import ValidatorInfo
-from src.messages import TC, TimeoutInfo
-from src.ledger import Ledger
+from block import QC, Block, BlockTree, LedgerCommitInfo, VoteInfo, VoteMsg
+from crypto import hasher, sign, valid_signatures
+from info import ValidatorInfo
+from messages import TC, TimeoutInfo
+from ledger import Ledger
 
 
 class SafetyPrivate:
