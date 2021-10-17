@@ -1,0 +1,16 @@
+#To do Archit
+class Pacemaker:
+    def __init__():
+        self.current_round=0
+
+    def get_round_timer(r):
+        return 4*r
+    
+    def start_timer(new_round):
+        pass
+
+    def advance_round_qc(qc):
+        if qc.vote_info.round < self.current_round:
+            return false
+        return true        
+

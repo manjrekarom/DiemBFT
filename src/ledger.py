@@ -1,7 +1,7 @@
 from typing import Dict, List
 from collections import deque
 from dataclasses import dataclass
-from tempfile import TemporaryFile
+# from tempfile import TemporaryFile
 
 from block import Block
 
@@ -15,7 +15,7 @@ class NoopTxnEngine:
     @staticmethod
     def execute_transactions(prev_state, block_id, txns: str):
         # state: identity
-        state = txns
+        # state = txns
         # TODO: Hash
         state_id = '#' + prev_state.state_id + txns
         # don't modify tree here
@@ -71,12 +71,12 @@ class Ledger:
     _ledger_file_name: str
 
     def __init__(self, root=None, ledger_file_name='ledger.log') -> None:
-        # TODO:
-        # if file exists read the last line
+        # TODO: if file exists read the last line
         # create genesys block
         if not root:
             # genesys
-            root = State('42', '42', None, 'GENESYS', []) # Meaning of life, universe and everything
+            root = State('42', '42', None, 'GENESYS', []) # Meaning of life, 
+            # universe and everything
         self._ledger_file_name = ledger_file_name
         if not ledger_file_name:
             self._ledger_file_name = 'ledger.log'
@@ -119,8 +119,6 @@ if __name__ == "__main__":
     for i in range(10):
         blocks.append(Block(f'Client-{i+1}', i, f'ClientSent-{i+1}', None, 
         block_id=str(i)))
-    # state1 = State(1, committed_root, '1234')
-    # state2 = State(5, committed_root, '1234')
     
     ledger.speculate('GENESYS', blocks[0].block_id, blocks[0].payload)
     ledger.speculate('0', blocks[1].block_id, blocks[1].payload)
@@ -129,4 +127,3 @@ if __name__ == "__main__":
     ledger.speculate('0', blocks[4].block_id, blocks[1].payload)
     ledger.speculate('1', blocks[5].block_id, blocks[1].payload)
     ledger.commit('1')
-    ledger

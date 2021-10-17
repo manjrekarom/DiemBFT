@@ -49,7 +49,8 @@ class RunDiem(process):
 
 def main():
     config(channel = Fifo, clock='Lamport')
-    configs = [{'nclients':3, 'ncrequest':3, 'nctimeout': 1, 'nservers' = 2,  'nsroundtriptime' = 5}]
+    configs = [{'nclients':3, 'ncrequest':3, 'nctimeout': 1, 'nservers': 2, 
+    'nsroundtriptime': 5}]
     for index,value in enumerate(configs):
         p = new(RunDiem)
         setup(p,(value,index,p))
