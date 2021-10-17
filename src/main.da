@@ -11,7 +11,13 @@ class RunDiem(process):
         self.n_client_reqs = config['n_client_reqs']
         self.client_tmo = config['client_tmo']
         self.n_validators = config['n_validators']
-        self.validator_rr = config['validator_rtt']
+        self.validator_rtt = config['validator_rtt']
+
+    def client_name(i):
+        return f'client-{i}'
+
+    def validator_name(i):
+        return f'validator-{i}'
 
     def run():
         # create clients and validators
@@ -24,20 +30,24 @@ class RunDiem(process):
         client_pub = []
         # create keys
         for i in range(n_clients):
-            priv_key = SigningKey.generate()
-            pub_key = priv_key.verify_key.encode(encoder=Base64Encoder)
-            client_priv.append(priv_key)
-            client_pub.append(pub_key)
+            # name = self.client_name(i)
+            client_priv.append(SigningKey.generate())
+            client_pub.append(client_priv[i].verify_key.encode(encoder=Base64Encoder))
         for i in range(n_validators):
-            priv_key = SigningKey.generate()
-            pub_key = priv_key.verify_key.encode(encoder=Base64Encoder)
-            validator_priv.append(priv_key)
-            validator_pub.append(pub_key)
+            # name = self.validator_name(i)
+            validator_priv.append(SigningKey.generate())
+            validator_pub.append(validator_priv[i].verify_key.encode(encoder=Base64Encoder))
         # setup
-        for i, validator in enumerate(validators):
-            setup(validator, (validator_priv[i], validator_pub, client_pub, n_case, validator_rtt))
-        for i, client in enumerate(clients):
-            setup(client, (client_priv[index], client_pub, validators, ncrequest,nctimeout, index, nvalidators))
+        for v_id, validator in enumerate(validators):
+            # name = validator_name(i)
+            setup(validator, (v_id, validator_priv[v_id], validator_pub, client_pub, validator_rtt))
+        # validators
+        # validators_dict = {}
+        # for i in range(validators):
+        #     validators_dict[validator_name(i)] = validators[i]
+        for c_id, client in enumerate(clients):
+            # name = self.client_name(i)
+            setup(client, (c_id, client_priv[c_id], validator_pub, validators, n_client_reqs, client_tmo))
 
         start(validators)
         start(clients)
@@ -50,8 +60,8 @@ class RunDiem(process):
 def main():
     config(channel = 'fifo', clock='Lamport')
     # list of configurations
-    configs = [{'n_clients': 3, 'n_client_reqs': 3, 'client_tmo': 1, 
-    'n_validators': 2, 'validator_rtt': 5}]
+    configs = [{'n_clients': 1, 'n_client_reqs': 3, 'client_tmo': 1, 
+    'n_validators': 1, 'validator_rtt': 5}]
     # running test cases with listed configs
     for i, config in enumerate(configs):
         test_case = new(RunDiem)

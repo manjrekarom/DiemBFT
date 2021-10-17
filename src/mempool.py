@@ -1,12 +1,12 @@
 from collections import deque
-class mempool():
-    
+
+
+class MemPool:    
     """
     Mempool class for storing validator comitted results and client commands 
     """
-
     def __init__(self):
-        self.dq = deque()
+        self.dq = deque([('1', '2', '4'),])
         self.done_requests = dict()
 
     def try_to_add_to_mempool(self,message:tuple):
@@ -22,7 +22,7 @@ class mempool():
     def add_to_mempool(self, proposal_no, client_id, message_content):
         self.dq.append((proposal_no, client_id, message_content))
 
-    def get_transactions(self,):
+    def get_transactions(self):
         proposal_no,client_id,message_content = self.dq[0] 
         while (proposal_no,client_id) not in self.done_requests:
             if len(self.done_requests)==0:

@@ -1,98 +1,98 @@
-#import Pacemaker
-#import Block_Tree
-# #import 
-from os import umask
-import block
-from src import pacemaker
-from src import leader_election 
-from block import BlockTree
-from safety import SafetyPrivate
+from src.ledger import Ledger
+from src.safety import Safety
+from src.block import BlockTree, VoteMsg
+from src.mempool import MemPool
+from src.info import ValidatorInfo
+from src.pacemaker import Pacemaker
+from src.leader_election import LeaderElection
 
 
 class Validator(process):
-
-    def setup (servers):
+    def setup(author, priv_key, validator_pub, client_pub, rtt):
         #self.broadcast = servers
-        self.u=None
-
+        self.validator_info = ValidatorInfo(
+            author=author,
+            public_key=validator_pub[author],
+            private_key=priv_key,
+            client_public_key=client_pub,
+            f=(len(validator_pub) - 1)//3
+        )
+        self.ledger = Ledger()
+        self.mempool = MemPool()
+        self.block_tree = BlockTree(ledger, validator_info)
+        self.safety = Safety(ledger, block_tree, validator_info)
+        self.leader_election = LeaderElection(len(validator_pub))
+        self.pacemaker = Pacemaker()
+        self.rtt = rtt
 
     def process_certificate_qc(qc):
-        block.BlockTree.process_qc(qc)
-        leader_election.LeaderElection.update_leaders(qc)
-        pacemaker.Pacemaker.advance_round(qc.vote_info.round)
+        block_tree.process_qc(qc)
+        leader_election.update_leaders(qc)
+        packemaker.advance_round_qc(qc.vote_info.round)
     
     def process_proposal_msg(proposal_msg):
         process_certificate_qc(proposal_msg.block.qc)
         process_certificate_qc(proposal_msg.high_commit_qc.qc)
-        pacemaker.Pacemaker.advance_round_tc(proposal_msg.last_round_tc)
-        round = pacemaker.Pacemaker.current_round
-        leader= leader_election.get_leader(round)
-        if(proposal_msg.block.round!=round or proposal_msg.sender!=leader or proposal_msg.block.author!= leader):
+        pacemaker.advance_round_tc(proposal_msg.last_round_tc)
+        round = pacemaker.current_round
+        leader = leader_election.get_leader(round)
+        if proposal_msg.block.round != round or proposal_msg.sender != leader or proposal_msg.block.author != leader:
             return
         BlockTree.execute_and_insert(proposal_msg)
-        vote_msg = SafetyPrivate.make_vote(proposal_msg.block,proposal_msg.last_round_tc)
-        if (vote_msg is not None):
-            send (vote_msg, to = leader_election.LeaderElection.get_leader(round+1))
-        
+        vote_msg = safety.make_vote(proposal_msg.block,proposal_msg.last_round_tc)
+        if vote_msg is not None:
+            send(vote_msg.to_tuple(), to=leader_election.LeaderElection.get_leader(round+1))
     
     def process_timeout_msg(timeout_msg):
         process_certificate_qc(timeout_msg.tmo_info.high_qc)
         process_certificate_qc(timeout_msg.high_commit_qc)
-        pacemaker.Pacemaker.advance_round_tc(timeout_msg.last_round_tc)
-        tc = pacemaker.Pacemaker.process_remote_timeout(timeout_msg)
+        pacemaker.advance_round_tc(timeout_msg.last_round_tc)
+        tc = pacemaker.process_remote_timeout(timeout_msg)
         if tc != None:
-            pacemaker.Pacemaker.advance_round(tc)
+            pacemaker.advance_round_tc(tc)
             process_new_round_event(tc)
     
     def process_vote_msg(vote_msg):
-        qc= block.BlockTree.process_vote(vote_msg)
+        qc = block_tree.process_vote(vote_msg)
         if qc is not None:
             process_certificate_qc(qc)
             process_new_round_event(None)
     
     def process_new_round_event(last_tc):
-        leader = leader_election.LeaderElection.get_leader(pacemaker.Pacemaker.current_round)
-        if(leader==id):
-            block =  BlockTree.generate_block(MemPool.get_transactions(),pacemaker.PaceMaker.current_round)
-            send(vote_msg, to=broadcast)
+        leader = leader_election.get_leader(pacemaker.current_round)
+        output("Leader is ", leader)
+        if leader == author:
+            block =  self.block_tree.generate_block(self.mempool.get_transactions(), 
+            pacemaker.current_round)
+            vote_msg = safety.make_vote(proposal_msg.block, proposal_msg.last_round_tc)
+            send(vote_msg.to_tuple(), to=broadcast)
 
     def run():
-        while(1):
-            # process never stops
-            if await(some(received((_, term, _, _, _, _, _)))):
-                reset(received)
+        # await(1 == 0)
+        # while(1):
+        # process never stops
+        if author == 0:
+            process_new_round_event(None)
+        
+        if await(len(setof(c, received(('Done'), from_=c))) >= len(client_pub)):
+            reset(received)
 
-    def receive(msg=('LOCAL_TIMEOUT')):
-        #Pacemaker.local_timeout_round()
-        pass
+    def receive(msg=('LocalTimeout')):
+        raise NotImplementedError
+        # pacemaker.local_timeout_round()
 
-    def receive(msg=('PROPOSAL_MESSAGE')):
-        # process_proposal_msg(msg)
-        pass
+    def receive(msg=('ProposalMsg', _, _, _, _, _)):
+        process_proposal_msg(msg)
 
-    def receive(msg=('VOTE_MESSAGE')):
-        # process_vote_msg(msg)
-        pass
+    def receive(msg=('VoteMsg', _, _, _, _, _)):
+        process_vote_msg(msg)
 
-    def receive(msg=('TIMEOUT_MSG')):
-        #process_timeout_message(msg)
-        pass
+    def receive(msg=('TimeoutMsg')):
+        # process_timeout_message(msg)
+        raise NotImplementedError
 
-
-class Run(process):
-    #def setup(config):
-     #   self.nrounds = config['nrounds']
-      #  self.npings = config['npings']
-    
-    def run():
-        m = new(MainModule, num= 5)
-        setup(m)
-        start(m)
-
-def main():
-    config(clock='Lamport')
-    configs = [{'nrounds':3, 'npings':3}, {'nrounds': 1, 'npings':2}]
-    for config in configs:
-        p = new(Run)
-        setup(p,(config,))
-        start(p)
+    def receive(msg=('Propose', round_no, id, message_content), from_=c):
+        self.mempool.try_to_add_to_mempool(('Propose', round_no, id, message_content))
+        output("Received message for round ", round_no, "from client ", id)
+        # self.mempool.commit_to_cache(round_no, id, 'Comitted ' + str(round_no) + ' - ' + str(id))
+        # send(('Comitted', round_no, 'Comitted ' + str(round_no) + ' - ' + str(id)), to=c)

@@ -1,14 +1,12 @@
-
-
-class LeaderElection():
+class LeaderElection:
     """
     Leader election module
     """
-    def __init__(self, validators, window_size,exclude_size,reputation_leaders):
-        self.validators = validators
-        self.window_size=window_size
-        self.excluded_size=exclude_size
-        self.reputation_leaders=reputation_leaders
+    def __init__(self, n_validators):  #, window_size,exclude_size,reputation_leaders):
+        self.n_validators = n_validators
+        # self.window_size = window_size
+        # self.excluded_size = exclude_size
+        # self.reputation_leaders = reputation_leaders
 
     def elect_reputation_leaders(self, qc):
         pass
@@ -20,8 +18,4 @@ class LeaderElection():
         pass
 
     def get_leader(self, round):
-        return self.validators[round % len(self.validators)]
-
-# def __main__():
-#     lc= LeaderElection()
-#     pass
+        return round % self.n_validators

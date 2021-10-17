@@ -4,6 +4,7 @@ from collections import defaultdict, deque
 
 from info import ValidatorInfo
 from crypto import hasher, sign
+from src.ledger import NoopTxnEngine
 
 
 @dataclass
@@ -12,7 +13,11 @@ class VoteInfo:
     round: int
     parent_block_id: str
     parent_round: int
-    exec_state_id: 'State'
+    exec_state_id: str
+
+    def to_tuple(self):
+        return (self.block_id, self.round, self.parent_block_id, 
+        self.parent_round, self.exec_state_id)
 
 
 @dataclass
@@ -20,14 +25,30 @@ class LedgerCommitInfo:
     commit_state_id: int
     vote_info_hash: str
 
+    def from_tuple(commit_state_id, vote_info_hash):
+        return LedgerCommitInfo(commit_state_id, vote_info_hash)
+
+    def to_tuple(self):
+        return (self.commit_state_id, self.vote_info_hash)
+
 
 @dataclass
 class QC:
     vote_info: VoteInfo
     ledger_commit_info: LedgerCommitInfo
     signatures: Set[str]
-    author: str
+    author: int
     author_signature: str
+
+    def from_tuple(vote_info, ledger_commit_info, signatures, author, 
+    author_signature):
+        vote_info = VoteInfo(*vote_info)
+        ledger_commit_info = LedgerCommitInfo(*ledger_commit_info)
+        return QC(vote_info, ledger_commit_info, signatures, author, author_signature)
+
+    def to_tuple(self):
+        return ('QC', self.vote_info.to_tuple(), self.ledger_commit_info.to_tuple(), 
+        self.signatures, self.author, self.author_signature)
 
 
 @dataclass
@@ -39,14 +60,27 @@ class VoteMsg:
     # TODO: signature types
     signature: str  # signed automatically when constructed
 
+    @staticmethod
+    def from_tuple(vote_info, ledger_commit_info, high_commit_qc, sender, signature):
+        vote_info = VoteInfo.from_tuple(vote_info)
+        ledger_commit_info = LedgerCommitInfo.from_tuple(ledger_commit_info)
+        qc = QC.from_tuple(high_commit_qc)
+        return VoteMsg(vote_info, ledger_commit_info, qc, sender, signature)
+
+    def to_tuple(self):
+        return ('VoteMsg', self.vote_info.to_tuple(), self.ledger_commit_info.to_tuple, self.high_commit_qc.to_tuple(), self.sender, self.signature)
+
 
 @dataclass
 class Block:
-    author: str
+    author: int
     round: int
     payload: str
     qc: QC
     block_id: str
+
+    def to_tuple(self):
+        return (self.author, self.round, self.payload, self.qc.to_tuple(), self.block_id)    
 
 
 @dataclass
@@ -65,6 +99,14 @@ class PendingBlockTree:
     _ids_to_block: Dict[str, PendingBlock]
 
     def __init__(self, root=None) -> None:
+        # create genesys block
+        if not root:
+            # genesys
+            b_id = hasher(99999999, 0, 'GENESYS', '', '')
+            vote_info = VoteInfo(b_id, 0, None, None, NoopTxnEngine.execute_transactions(None, b_id, 'GENESYS'))
+            b = Block(99999999, 0, 'GENESYS', None, b_id)
+            root = PendingBlock(b, vote_info, None, []) # Meaning of life, 
+            # universe and everything
         assert root.parent == None
         self._root: PendingBlock = root
         self._ids_to_state: Dict[str, PendingBlock] = {}
@@ -79,7 +121,7 @@ class PendingBlockTree:
         hm = {}
         while len(dq):
             node = dq.popleft()
-            hm[node.block_id] = node
+            hm[node.block.block_id] = node
             if node.children:
                 dq.extend(node.children)
         return hm
@@ -117,15 +159,15 @@ class BlockTree:
     ledger: 'Ledger'
     # TODO: Initialize
     high_commit_qc: QC
-    high_qc: QC
+    high_qc: QC = 0
     pending_votes: defaultdict
     validator_info: ValidatorInfo
 
     def __init__(self, ledger: 'Ledger', validator_info: 'ValidatorInfo') -> None:
         # TODO: Initialize better
+        self.ledger = ledger
         self.validator_info = validator_info
         self.pending_block_tree = PendingBlockTree()
-        self.ledger = ledger
         self.pending_votes = defaultdict(set)
 
     def process_qc(self, qc: QC):
