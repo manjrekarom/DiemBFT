@@ -1,5 +1,7 @@
 from typing import List
 
+
+
 class SafetyPrivate:
     _private_key: str
     _public_keys: List[str]
@@ -40,9 +42,28 @@ class SafetyPrivate:
 
 
 class SafetyPublic:
-    def make_vote(b, last_tc):
+    
+    def make_vote(self, b, last_tc): 
+        logger = logging.getLogger()
         qc_round = b.qc.vote_info.round
-        if valid_signatures(b, last_tc) and safe_to_vote(b.round, qc_round, last_tc):
-            update_highest_qc_round(qc_round)
-            increase_highest_vote_round(b.round)
-            vote_info = VoteInfo()
+        if SafetyPrivate.safe_to_vote(b.round, qc_round, last_tc):
+            SafetyPrivate.update_highest_qc_round(qc_round)  # Protect the QC round
+            SafetyPrivate.increase_highest_vote_round(b.round)  # Don't vote again in this or lower round
+
+            # VoteInfo contains the info about the  potential QC info with the ids and rounds of the parent QC
+
+            vote_info = BlockTree.VoteInfo((b.id, b.round), (b.qc.vote_info.id, b.qc.vote_info.round), Ledger.pending_state(b.id))
+            logger.info(vote_info)
+
+            ledger_commit_info = BlockTree.LedgerCommitInfo(SafetyPrivate.commit_state_id_candidate(b.round, b.qc), hash(vote_info))
+            logger.info(ledger_commit_info)
+
+            return BlockTree.VoteMsg(vote_info, ledger_commit_info, BlockTree.high_commit_qc)
+        return None
+
+    """ def make_timout(round, high_qc, last_tc):
+        qc_round = high_qc.vote_info.round
+        if valid_signatures(high_qc, last_tc) and SafetyPrivate.safe_to_timeout(round, qc_round, last_tc):
+            SafetyPrivate.increase_highest_vote_round(round)  # Stop voting for round
+            return TimeoutInfo (round, high_qc)
+        return None """
