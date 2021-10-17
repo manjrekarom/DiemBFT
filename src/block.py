@@ -2,8 +2,8 @@ from typing import Dict, List, Set
 from dataclasses import dataclass
 from collections import defaultdict, deque
 
-from src.info import ValidatorInfo
-from src.crypto import hasher, sign
+from info import ValidatorInfo
+from crypto import hasher, sign
 
 
 @dataclass

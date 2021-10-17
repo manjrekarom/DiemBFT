@@ -1,17 +1,19 @@
-#To do Archit
+from block import QC, Block
+
 class Pacemaker:
-    def __init__():
-        self.current_round=0
+    def setup(process):
+        self.current_rond = 0
+        self.last_round_tc = None
+        self.pending_timeouts = 0
 
-    def get_round_timer(r):
-        return 4*r
-    
-    def start_timer(new_round):
-        pass
+    def process_remote_timeout(tmo:Time):
+        return None
 
-    def advance_round_qc(qc):
+    def advance_round_qc(qc:QC):
         if qc.vote_info.round < self.current_round:
-            return false
-        return true        
-
+            return False
+        
+        last_round_tc = None
+        current_round = qc.vote_info.round + 1
+        return True
 

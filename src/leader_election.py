@@ -1,5 +1,7 @@
-#To do archit
-class LeaderElection(process):
+class LeaderElection():
+    """
+    Leader election module
+    """
     def __init__(validators, window_size,exclude_size,reputation_leaders):
         self.validators = validators
         self.window_size=window_size
@@ -16,4 +18,4 @@ class LeaderElection(process):
         pass
 
     def get_leader(round):
-        return validators[(round/2) % len(validators)]
+        return validators[round % len(validators)]
