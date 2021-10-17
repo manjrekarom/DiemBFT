@@ -1,10 +1,9 @@
 from typing import Dict, List, Set
 from dataclasses import dataclass
 from collections import defaultdict, deque
-from info import ValidatorInfo
 
-from ledger import Ledger
-from crypto import hasher, sign
+from src.info import ValidatorInfo
+from src.crypto import hasher, sign
 
 
 @dataclass
@@ -13,6 +12,7 @@ class VoteInfo:
     round: int
     parent_block_id: str
     parent_round: int
+    exec_state_id: 'State'
 
 
 @dataclass
@@ -35,9 +35,9 @@ class VoteMsg:
     vote_info: VoteInfo
     ledger_commit_info: LedgerCommitInfo
     high_commit_qc: QC
-    sender: str
+    sender: str  # added automatically when constructed
     # TODO: signature types
-    signature: str
+    signature: str  # signed automatically when constructed
 
 
 @dataclass
@@ -114,14 +114,14 @@ class PendingBlockTree:
 
 class BlockTree:
     pending_block_tree: PendingBlockTree
-    ledger: Ledger
+    ledger: 'Ledger'
     # TODO: Initialize
     high_commit_qc: QC
     high_qc: QC
     pending_votes: defaultdict
     validator_info: ValidatorInfo
 
-    def __init__(self, ledger, validator_info) -> None:
+    def __init__(self, ledger: 'Ledger', validator_info: 'ValidatorInfo') -> None:
         # TODO: Initialize better
         self.validator_info = validator_info
         self.pending_block_tree = PendingBlockTree()
@@ -144,7 +144,7 @@ class BlockTree:
             self.high_qc = qc
 
     def execute_and_insert(self, block: Block):
-        Ledger.speculate(block.qc.vote_info.block_id, block.block_id, 
+        self.ledger.speculate(block.qc.vote_info.block_id, block.block_id, 
         block.payload)
         self.pending_block_tree.add(block)
 
