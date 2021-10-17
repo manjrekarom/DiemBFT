@@ -6,7 +6,7 @@ from messages import TC, TimeoutInfo
 from ledger import Ledger
 
 
-class SafetyPrivate:
+class Safety:
     _private_key: str
     _public_keys: List[str]
     _highest_vote_round: int

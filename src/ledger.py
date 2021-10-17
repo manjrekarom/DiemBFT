@@ -3,7 +3,8 @@ from collections import deque
 from dataclasses import dataclass
 # from tempfile import TemporaryFile
 
-from src.block import Block
+# from src.block import Block
+from src.crypto import hasher
 
 
 class NoopTxnEngine:
@@ -17,7 +18,10 @@ class NoopTxnEngine:
         # state: identity
         # state = txns
         # TODO: Hash
-        state_id = '#' + prev_state.state_id + txns
+        if not prev_state:
+            state_id = hasher(txns)
+        else:
+            state_id = hasher(prev_state.state_id, txns)
         # don't modify tree here
         return State(state_id, txns, None, block_id)
 
@@ -69,7 +73,7 @@ class Ledger:
 
     def __init__(self, root=None, ledger_file_name='ledger.log') -> None:
         # TODO: if file exists read the last line
-        # create genesys block
+        # create genesys state
         if not root:
             # genesys
             root = State('42', '42', None, 'GENESYS', []) # Meaning of life, 
@@ -110,17 +114,17 @@ class Ledger:
         return self._speculation_tree.get_state_by_block_id(block_id)
 
 
-if __name__ == "__main__":
-    ledger = Ledger()
-    blocks = []
-    for i in range(10):
-        blocks.append(Block(f'Client-{i+1}', i, f'ClientSent-{i+1}', None, 
-        block_id=str(i)))
+# if __name__ == "__main__":
+    # ledger = Ledger()
+    # blocks = []
+    # for i in range(10):
+        # blocks.append(Block(f'Client-{i+1}', i, f'ClientSent-{i+1}', None, 
+        # block_id=str(i)))
     
-    ledger.speculate('GENESYS', blocks[0].block_id, blocks[0].payload)
-    ledger.speculate('0', blocks[1].block_id, blocks[1].payload)
-    ledger.speculate('GENESYS', blocks[2].block_id, blocks[1].payload)
-    ledger.speculate('GENESYS', blocks[3].block_id, blocks[3].payload)
-    ledger.speculate('0', blocks[4].block_id, blocks[1].payload)
-    ledger.speculate('1', blocks[5].block_id, blocks[1].payload)
-    ledger.commit('1')
+    # ledger.speculate('GENESYS', blocks[0].block_id, blocks[0].payload)
+    # ledger.speculate('0', blocks[1].block_id, blocks[1].payload)
+    # ledger.speculate('GENESYS', blocks[2].block_id, blocks[1].payload)
+    # ledger.speculate('GENESYS', blocks[3].block_id, blocks[3].payload)
+    # ledger.speculate('0', blocks[4].block_id, blocks[1].payload)
+    # ledger.speculate('1', blocks[5].block_id, blocks[1].payload)
+    # ledger.commit('1')

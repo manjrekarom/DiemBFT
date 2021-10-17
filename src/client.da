@@ -7,16 +7,16 @@ class Client(process):
     """
     Client class to communicate with validators
     """
-    def setup(total_validators:int, nrounds:int, validator_set:set(Validators), retryTime:float, id:int):
-        self.round_no= 1
-        self.comitted_nodes= set()
+    def setup(c_id, client_priv, validator_pub, validators: set, n_client_reqs: int, client_tmo: float):
+        self.round_no = 1
+        self.comitted_nodes = set()
         self.comitted_answer= dict()
         self.answer= dict()
         self.done = False
 
     def run():
-        while(round_no <= nrounds):    
-            send(("Propose" , round_no, id , "Client" + str(id) + "-" + str(round_no)), to=validator_set)
+        while(round_no <= n_client_reqs):    
+            send(("Propose" , round_no, id , "Client" + str(id) + "-" + str(round_no)), to=validators)
             if await(done):
                 output("Round " + str(round_no)+ " done on client "+ str(id) + " with value " + answer[round_no] + " onto round " + str(round_no+1))
                 round_no = round_no + 1
@@ -24,9 +24,9 @@ class Client(process):
                 comitted_answer.clear()
                 done = False
 
-            elif timeout(retryTime):
+            elif timeout(client_tmo):
                 output("Timing out for round ", round_no)
-        send(('Done',), to= validator_set)
+        send(('Done',), to= validators)
 
     def receive(msg=('Comitted', i, message_content), from_=p):
         if(i==(round_no)):
@@ -43,45 +43,45 @@ class Client(process):
 
     
 
-class Validators(process):
+# class Validators(process):
     
-    def setup(client_set:Set(Client), i:int, failiure_probability:float):
-        self.rec=0
-        self.memorypool = mempool.mempool()
+#     def setup(client_set:Set(Client), i:int, failiure_probability:float):
+#         self.rec=0
+#         self.memorypool = mempool.mempool()
 
-    def run(): 
-        await(rec == len(client_set))
-        output("Validator ", i, " Exiting" )
+#     def run(): 
+#         await(rec == len(client_set))
+#         output("Validator ", i, " Exiting" )
 
-    def receive(msg=('Done' ,) ):
-        rec = rec+1
-        output("rec is", rec, " on client ",i)
+#     def receive(msg=('Done' ,) ):
+#         rec = rec+1
+#         output("rec is", rec, " on client ",i)
     
-    def receive(msg=('Propose' , round_no, id, message_content), from_=c):
-        memorypool.try_to_add_to_mempool(('Propose' , round_no, id, message_content))
-        output("Received message for round ", round_no, "from client ", id)
-        memorypool.commit_to_cache(round_no, id, 'Comitted ' + str(round_no) + ' - ' + str(id))
-        send(('Comitted',round_no, 'Comitted ' + str(round_no) + ' - ' + str(id)), to=c)
+    # def receive(msg=('Propose' , round_no, id, message_content), from_=c):
+    #     memorypool.try_to_add_to_mempool(('Propose' , round_no, id, message_content))
+    #     output("Received message for round ", round_no, "from client ", id)
+    #     memorypool.commit_to_cache(round_no, id, 'Comitted ' + str(round_no) + ' - ' + str(id))
+    #     send(('Comitted',round_no, 'Comitted ' + str(round_no) + ' - ' + str(id)), to=c)
         
 
-def main():
+# def main():
     
-    rounds=10
-    failiure_probability=0.1
-    retryTime =2
-    nvalidators= 10
-    nclient = 5
-    c = new(Client,num=nclient)
-    validators = new(Validators, num= nvalidators)
-    index=0
+#     rounds=10
+#     failiure_probability=0.1
+#     client_tmo =2
+#     nvalidators= 10
+#     nclient = 5
+#     c = new(Client,num=nclient)
+#     validators = new(Validators, num= nvalidators)
+#     index=0
 
-    for client in enumerate(c):
-        setup(client,(len(validators), rounds, validators, retryTime,index))
-        index=index+1
+#     for client in enumerate(c):
+#         setup(client,(len(validators), rounds, validators, client_tmo,index))
+#         index=index+1
     
-    for validator in enumerate(validators):
-        setup(validator,(c, index, failiure_probability))
-        index=index+1
+#     for validator in enumerate(validators):
+#         setup(validator,(c, index, failiure_probability))
+#         index=index+1
 
-    start(validators)
-    start(c)
+#     start(validators)
+#     start(c)
