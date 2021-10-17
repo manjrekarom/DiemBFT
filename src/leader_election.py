@@ -10,6 +10,9 @@ class LeaderElection(process):
         pass
 
     def update_leaders(qc):
+        """
+        Update the leader
+        """
         pass
 
     def get_leader(round):

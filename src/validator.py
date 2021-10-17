@@ -1,26 +1,28 @@
 #import Pacemaker
 #import Block_Tree
 # #import 
-from Block_Tree import BlockTree
+import block
+from src import pacemaker
+from src import leader_election 
 
-class  ( process):
 
-   def __init__(servers):
+class Validator(process):
+
+   def setup (servers):
         #self.broadcast = servers
 
 
     def process_certificate_qc(qc):
-        
-        #Block-Tree.process_qc(qc)
-        #LeaderElection.update_leaders(qc)
-        #PaceMaker.advance_round(qc.vote_info.round)
+        block.BlockTree.process_qc(qc)
+        leader_election.LeaderElection.update_leaders(qc)
+        pacemaker.Pacemaker.advance_round(qc.vote_info.round)
     
     def process_proposal_msg(P):
         #process_certificate_qc(P.block.qc)
         #process_certificate_qc(P.block.qc)
         #Pacemaker.advance_round_tc(P.last_round_tc)
-        round = Pacemaker.current_round
-        leader= LeaderElection.get_leader(current_round)
+        round = pacemaker.current_round
+        leader= leader_election.get_leader(current_round)
         if(P.block.round!=round or P.sender!=leader or P.block.author!= leader):
             return
         Block_Tree.execute_and_insert(P)
