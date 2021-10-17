@@ -1,5 +1,5 @@
-from dataclasses import dataclass
 from typing import Set
+from dataclasses import dataclass
 
 from block import QC, Block
 
@@ -7,9 +7,10 @@ from block import QC, Block
 class TimeoutInfo:
     round: int
     high_qc: QC
-    sender: str
+    sender: str  # should be automatically added when created
     # TODO: might need to change it to bytes
-    signature: str
+    signature: str  # sign_u(round, high_qc.round) // automatically signed
+    # when constructed
 
 
 @dataclass
