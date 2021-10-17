@@ -165,6 +165,6 @@ class BlockTree:
 
     def generate_block(self, txns, current_round):
         # TODO: check below statement
-        h = hasher(self.validator_info.author + current_round + txns + self.high_qc.vote_info.block_id + self.high_qc.signatures)
+        h = hasher(self.validator_info.author, current_round, txns, self.high_qc.vote_info.block_id, self.high_qc.signatures)
         return Block(author=self.validator_info.author, round=current_round, 
         payload=txns, qc=self.high_qc, block_id=h)

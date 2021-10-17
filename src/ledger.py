@@ -32,9 +32,6 @@ class State:
     block_id: str
     children: List['State'] = None
 
-    def __repr__(self) -> str:
-        return f'{self.state_id}|{self.state_value}|{self.block_id}\n'
-
 
 class SpeculationTree:
     def __init__(self, root) -> None:
