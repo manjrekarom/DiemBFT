@@ -1,7 +1,7 @@
 import sys
 import logging
 from random import random
-
+import mempool
 
 class Client(process):
     """
@@ -44,10 +44,12 @@ class Client(process):
     
 
 class Validators(process):
+    
     def setup(client_set:Set(Client), i:int, failiure_probability:float):
         self.rec=0
-    def run():
-         
+        self.memorypool = mempool.mempool()
+
+    def run(): 
         await(rec == len(client_set))
         output("Validator ", i, " Exiting" )
 
@@ -55,11 +57,15 @@ class Validators(process):
         rec = rec+1
         output("rec is", rec, " on client ",i)
     
-    def receive(msg=('Propose' , round_no, id,string), from_=c):
-        output("Received message for round ",round_no,"from client ",id)
+    def receive(msg=('Propose' , round_no, id, message_content), from_=c):
+        memorypool.try_to_add_to_mempool(('Propose' , round_no, id, message_content))
+        output("Received message for round ", round_no, "from client ", id)
+        memorypool.commit_to_cache(round_no, id, 'Comitted ' + str(round_no) + ' - ' + str(id))
         send(('Comitted',round_no, 'Comitted ' + str(round_no) + ' - ' + str(id)), to=c)
+        
 
 def main():
+    
     rounds=10
     failiure_probability=0.1
     retryTime =2
@@ -68,11 +74,14 @@ def main():
     c = new(Client,num=nclient)
     validators = new(Validators, num= nvalidators)
     index=0
+
     for client in enumerate(c):
         setup(client,(len(validators), rounds, validators, retryTime,index))
         index=index+1
+    
     for validator in enumerate(validators):
         setup(validator,(c, index, failiure_probability))
         index=index+1
+
     start(validators)
     start(c)
