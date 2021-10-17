@@ -1,10 +1,11 @@
+from typing import List
 from dataclasses import dataclass
 
 
 @dataclass
 class ValidatorInfo:
     author: int
-    public_key: str
+    validator_pks: List[str]
     private_key: str
-    client_public_key: str
+    client_pks: List[str]
     f: int  # f is upper bound on number of byzantine faults

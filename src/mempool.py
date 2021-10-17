@@ -6,7 +6,7 @@ class MemPool:
     Mempool class for storing validator comitted results and client commands 
     """
     def __init__(self):
-        self.dq = deque([('1', '2', '4'),])
+        self.dq = deque()
         self.done_requests = dict()
 
     def try_to_add_to_mempool(self,message:tuple):
@@ -23,13 +23,13 @@ class MemPool:
         self.dq.append((proposal_no, client_id, message_content))
 
     def get_transactions(self):
-        proposal_no,client_id,message_content = self.dq[0] 
-        while (proposal_no,client_id) not in self.done_requests:
+        proposal_no, client_id, message_content = self.dq[0] 
+        while (proposal_no, client_id) not in self.done_requests:
             if len(self.done_requests)==0:
                 return None
-            proposal_no,client_id,message_content = self.dq[0]
+            proposal_no, client_id, message_content = self.dq[0]
             self.dq.popleft()
-        return  (proposal_no,client_id,message_content)
+        return f'{proposal_no}--{client_id}--{message_content}'
         
     def commit_to_cache(self,proposal_no, client_id, executed_state):
         self.done_requests[(proposal_no,client_id)] = executed_state

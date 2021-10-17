@@ -1,7 +1,8 @@
 from typing import Set
 from dataclasses import dataclass
 
-from block import QC, Block
+from src.block import QC, Block
+
 
 @dataclass
 class TimeoutInfo:
@@ -23,7 +24,10 @@ class TC:
     # (round, respective high qc round)
 
     def to_tuple(self):
+        if not self:
+            return None
         return (self.round, self.tmo_high_qc_rounds, self.tmo_signatures)
+
 
 @dataclass
 class TimeoutMsg:
@@ -35,7 +39,7 @@ class TimeoutMsg:
 
 @dataclass
 class ProposalMsg:
-    block: Block
+    block: 'Block'
     last_round_tc: TC  # TC for (block.round - 1) 
     # if block.qc.vote_info.round != (block.round - 1), else None
     high_commit_qc: QC  # QC to synchronise then committed blocks
@@ -44,5 +48,8 @@ class ProposalMsg:
     sender : str
 
     def to_tuple(self):
+        if not self:
+            return None
+        # output("last_round_tc", self.last_round_tc)
         return ('ProposalMsg', self.block.to_tuple(), self.last_round_tc.to_tuple(),
         self.high_commit_qc.to_tuple(), self.signature, self.sender)

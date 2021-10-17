@@ -1,4 +1,5 @@
 from src.ledger import Ledger
+from src.messages import ProposalMsg
 from src.safety import Safety
 from src.block import BlockTree, VoteMsg
 from src.mempool import MemPool
@@ -12,14 +13,16 @@ class Validator(process):
         #self.broadcast = servers
         self.validator_info = ValidatorInfo(
             author=author,
-            public_key=validator_pub[author],
+            validator_pks=validator_pub,
             private_key=priv_key,
-            client_public_key=client_pub,
+            client_pks=client_pub,
             f=(len(validator_pub) - 1)//3
         )
-        self.ledger = Ledger()
+        n_validators = len(self.validator_info.validator_pks)
+        self.ledger = Ledger(n_validators=n_validators)
         self.mempool = MemPool()
         self.block_tree = BlockTree(ledger, validator_info)
+        output("HERE")
         self.safety = Safety(ledger, block_tree, validator_info)
         self.leader_election = LeaderElection(len(validator_pub))
         self.pacemaker = Pacemaker()
@@ -38,7 +41,7 @@ class Validator(process):
         leader = leader_election.get_leader(round)
         if proposal_msg.block.round != round or proposal_msg.sender != leader or proposal_msg.block.author != leader:
             return
-        BlockTree.execute_and_insert(proposal_msg)
+        self.block_tree.execute_and_insert(proposal_msg)
         vote_msg = safety.make_vote(proposal_msg.block,proposal_msg.last_round_tc)
         if vote_msg is not None:
             send(vote_msg.to_tuple(), to=leader_election.LeaderElection.get_leader(round+1))
@@ -62,17 +65,23 @@ class Validator(process):
         leader = leader_election.get_leader(pacemaker.current_round)
         output("Leader is ", leader)
         if leader == author:
-            block =  self.block_tree.generate_block(self.mempool.get_transactions(), 
-            pacemaker.current_round)
-            vote_msg = safety.make_vote(proposal_msg.block, proposal_msg.last_round_tc)
-            send(vote_msg.to_tuple(), to=broadcast)
+            # txns = self.mempool.get_transactions()
+            txns = '123'
+            output("txns", txns)
+            block = block_tree.generate_block(txns, pacemaker.current_round)
+            output("block", block)
+            # signature and sender
+            proposal_msg = ProposalMsg(block, last_tc, block_tree.high_commit_qc, 
+            '', '')
+            send(proposal_msg.to_tuple(), to=broadcast)
 
     def run():
         # await(1 == 0)
         # while(1):
         # process never stops
         if author == 0:
-            process_new_round_event(None)
+            if await(some(received(('Propose', _, _, _)))):
+                process_new_round_event(None)
         
         if await(len(setof(c, received(('Done'), from_=c))) >= len(client_pub)):
             reset(received)
@@ -91,7 +100,7 @@ class Validator(process):
         # process_timeout_message(msg)
         raise NotImplementedError
 
-    def receive(msg=('Propose', round_no, id, message_content), from_=c):
+    def receive(msg=('Propose', round_no, id, message_content)):
         self.mempool.try_to_add_to_mempool(('Propose', round_no, id, message_content))
         output("Received message for round ", round_no, "from client ", id)
         # self.mempool.commit_to_cache(round_no, id, 'Comitted ' + str(round_no) + ' - ' + str(id))

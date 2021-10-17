@@ -5,6 +5,7 @@ from dataclasses import dataclass
 
 # from src.block import Block
 from src.crypto import hasher
+from src.genesys import initialize_block_and_state
 
 
 class NoopTxnEngine:
@@ -71,13 +72,16 @@ class Ledger:
     _speculation_tree: 'SpeculationTree'
     _ledger_file_name: str
 
-    def __init__(self, root=None, ledger_file_name='ledger.log') -> None:
+    def __init__(self, root=None, ledger_file_name='ledger.log', n_validators=None) -> None:
         # TODO: if file exists read the last line
         # create genesys state
         if not root:
             # genesys
-            root = State('42', '42', None, 'GENESYS', []) # Meaning of life, 
+            # root = State('42', '42', None, 'GENESYS', []) # Meaning of life, 
             # universe and everything
+            assert n_validators != None
+            bs1, bs2, bs3 = initialize_block_and_state(n_validators)
+            root = bs1[1]
         self._ledger_file_name = ledger_file_name
         if not ledger_file_name:
             self._ledger_file_name = 'ledger.log'
@@ -103,7 +107,6 @@ class Ledger:
         # self._ledger.writelines(list(map(str, nodes_pending_commit)))
         with open(self._ledger_file_name, 'a+') as f:
             f.writelines(list(map(str, nodes_pending_commit)))
-        # print(self._ledger)
         # prune other branches
         new_root = nodes_pending_commit[0]
         new_root.parent = None
