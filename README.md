@@ -11,12 +11,11 @@ Implementation of the Diem consensus protocol version 4 running on Diem blockcha
 
 ## Workload Generation
 main.da contains the implementation of the workload generation
-
-n_clients = config['n_clients']
-n_client_reqs = config['n_client_reqs']
-client_tmo = config['client_tmo']
-n_validators = config['n_validators']
-validator_rtt = config['validator_rtt']
+-n_clients = config['n_clients']
+-n_client_reqs = config['n_client_reqs']
+-client_tmo = config['client_tmo']
+-n_validators = config['n_validators']
+-validator_rtt = config['validator_rtt']
 
 
 
