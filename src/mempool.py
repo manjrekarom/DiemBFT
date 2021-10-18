@@ -9,34 +9,34 @@ class MemPool:
         self.dq = deque()
         self.done_requests = dict()
 
-    def try_to_add_to_mempool(self,message:tuple):
+    def try_to_add_to_mempool(self, message: tuple):
         proposal_no = message[1]
         client_id = message[2]
-        message_content = message[3]
+        msg = message[3]
         print("I am trying to add to mempool")
-        print("message_content is", message_content)
-        print("message_content is", client_id)
-        print("message_content is", proposal_no)
+        print(f'proposal_no {proposal_no}, client_id {client_id}, msg {msg}')
         if (proposal_no, client_id) in self.done_requests:
             return self.done_requests[(proposal_no, client_id)]
         else:
-            self.add_to_mempool(proposal_no, client_id, message_content)
-            return None
+            self.add_to_mempool(proposal_no, client_id, msg)
 
-    def add_to_mempool(self, proposal_no, client_id, message_content):
+    def add_to_mempool(self, proposal_no, client_id, msg):
         print("Adding to dq")
-        self.dq.append((proposal_no, client_id, message_content))
-        print(self.dq[0])
+        self.dq.append((proposal_no, client_id, msg))
+        # print(self.dq[0])
 
     def get_transactions(self):
-        print(self.dq[0])
-        proposal_no, client_id, message_content = self.dq[0] 
-        while (proposal_no, client_id) in self.done_requests:
-            if len(self.done_requests)==0:
-                return None
-            proposal_no, client_id, message_content = self.dq[0]
-            self.dq.popleft()
-        return f'{proposal_no}--{client_id}--{message_content}'
+        print(self.dq)
+        if len(self.dq) < 1:
+            print("WARNING: No transactions in mempool; Sending dummy.")
+            return 'DUMMY'
+        proposal_no, client_id, msg = self.dq.popleft() 
+        # while (proposal_no, client_id) in self.done_requests:
+        #     if len(self.done_requests) == 0:
+        #         return None
+        #     proposal_no, client_id, msg = self.dq[0]
+        #     self.dq.popleft()
+        return f'{proposal_no}--{client_id}--{msg}'
         
-    def commit_to_cache(self,proposal_no, client_id, executed_state):
-        self.done_requests[(proposal_no,client_id)] = executed_state
+    def commit_to_cache(self, proposal_no, client_id, executed_state):
+        self.done_requests[(proposal_no, client_id)] = executed_state

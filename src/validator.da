@@ -25,7 +25,6 @@ class Validator(process):
         n_validators=n_validators)
         self.mempool = MemPool()
         self.block_tree = BlockTree(ledger, validator_info)
-        output("HERE")
         self.safety = Safety(ledger, block_tree, validator_info)
         self.leader_election = LeaderElection(len(validator_pub))
         self.pacemaker = Pacemaker()
@@ -37,11 +36,13 @@ class Validator(process):
         if not state:
             output("State is None; Nothing to send")
         try:
-            c_id = int(state.state_value.split('-')[0][-1])
-            seq_no = int(state.state_value.split('-')[1])
+            proposal_no, c_id, message = state.state_value.split('--')
+            proposal_no = int(proposal_no)
+            c_id = int(c_id)
             output("Sending from validator to client", c_id, "message", 
             state.state_value)
-            send(('Committed', seq_no, state.state_value), to=clients[c_id])
+            mempool.commit_to_cache(proposal_no, c_id, state)
+            send(('Committed', proposal_no, message), to=list(clients)[c_id])
         except:
             output("Can't parse output")
 
@@ -94,11 +95,12 @@ class Validator(process):
         output("Leader of this round is:", leader)
         # print(self.mempool.dq)
         if leader == author:
+            output("Fetching transactions")
             txns = self.mempool.get_transactions()
-            # txns = '123'
-            output("txns", txns)
+            # sent(('Committed', _, 'DUMMY'))
+            output("Making block")
             block = block_tree.generate_block(txns, pacemaker.current_round)
-            output("block", block.block_id)
+            output("Making ProposalMsg")
             proposal_msg = ProposalMsg(block, last_tc, block_tree.high_commit_qc, 
             '', author)
             send(ProposalMsg.to_tuple(proposal_msg), to=validators)
@@ -134,16 +136,17 @@ class Validator(process):
         vote_info = VoteInfo(*vi)
         ledger_commit_info = LedgerCommitInfo(*lci)
         qc = QC.from_tuple(*hc_qc)
-        vote_msg = VoteMsg(vote_info, ledger_commit_info, qc, sender, 
-        signature)
+        vote_msg = VoteMsg(vote_info, ledger_commit_info, qc, sender, signature)
         process_vote_msg(vote_msg)
 
     def receive(msg=('TimeoutMsg')):
         # process_timeout_message(msg)
         raise NotImplementedError
 
-    def receive(msg=('Propose', round_no, id, message_content)):
-        self.mempool.try_to_add_to_mempool(('Propose', round_no, id, message_content))
+    def receive(msg=('Propose', round_no, id, message_content), from_=client):
+        cache = self.mempool.try_to_add_to_mempool(('Propose', round_no, id, message_content))
+        if cache:
+            send_to_client(cache)
         output("handling message in receive queue")
         output("Received message for round ", round_no, "from client ", id,  "message content is ", message_content)
         # self.mempool.commit_to_cache(round_no, id, 'Comitted ' + str(round_no) + ' - ' + str(id))

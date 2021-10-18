@@ -134,6 +134,7 @@ class PendingBlockTree:
 
     def make_ids_to_block_from_root(self, root):
         # bfs on root
+        print("Make ids")
         dq = deque([root])
         hm = {}
         while len(dq):

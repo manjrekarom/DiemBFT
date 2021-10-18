@@ -16,10 +16,11 @@ class Client(process):
 
     def run():
         while round_no <= n_client_reqs:    
-            send(("Propose" , round_no, c_id , f'Client{c_id}-{round_no}'), 
+            send(("Propose", round_no, c_id, f'Client{c_id}-{round_no}'), 
             to=validators)
             if await(done):
-                output("Round " + str(round_no)+ " done on client "+ str(c_id) + " with value " + answer[round_no] + " onto round " + str(round_no+1))
+                output("Round " + str(round_no)+ " done on client "+ str(c_id) + 
+                " with value " + answer[round_no] + " onto round " + str(round_no+1))
                 round_no = round_no + 1
                 comitted_nodes.clear()
                 comitted_answer.clear()
@@ -28,7 +29,7 @@ class Client(process):
                 output("Timing out for round ", round_no)
         send(('Done',), to= validators)
 
-    def receive(msg=('Comitted', i, message_content), from_=p):
+    def receive(msg=('Committed', i, message_content), from_=p):
         output('Received reply from validator')
         if i == round_no:
             if p not in comitted_nodes:
@@ -37,7 +38,7 @@ class Client(process):
                     comitted_answer[message_content]=1
                 else:
                     comitted_answer[message_content]+=1    
-                if(comitted_answer[message_content] >=(total_validators/2)):
+                if(comitted_answer[message_content] >= (total_validators + 1) // 2):
                     done = True
                     answer[round_no] = message_content 
-                output("Client votes needed ", total_validators/2)
+                output("Client votes needed ", (total_validators + 1) // 2)
