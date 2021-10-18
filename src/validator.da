@@ -20,7 +20,7 @@ class Validator(process):
             f=(len(validator_pub) - 1)//3
         )
         n_validators = len(self.validator_info.validator_pks)
-        self.ledger = Ledger(ledger_file_name=f'ledger-{self.validator_info.author}',
+        self.ledger = Ledger(ledger_file_name=f'ledgers/ledger-{self.validator_info.author}.log',
         n_validators=n_validators)
         self.mempool = MemPool()
         self.block_tree = BlockTree(ledger, validator_info)
@@ -36,7 +36,9 @@ class Validator(process):
         block_tree.process_qc(qc)
         output("process_qc done")
         leader_election.update_leaders(qc)
+        output("update leaders done")
         pacemaker.advance_round_qc(qc)
+        output("advance round qc done")
     
     def process_proposal_msg(proposal_msg):
         output("1")
@@ -73,7 +75,8 @@ class Validator(process):
     
     def process_new_round_event(last_tc):
         leader = leader_election.get_leader(pacemaker.current_round)
-        output("Leader is ", leader)
+        output("Leader of this round is:", leader)
+        # print(self.mempool.dq)
         if leader == author:
             txns = self.mempool.get_transactions()
             # txns = '123'
@@ -100,15 +103,15 @@ class Validator(process):
         # pacemaker.local_timeout_round()
 
     def receive(msg=('ProposalMsg', block, tc, high_commit_qc, signature, sender)):
+        output("Received ProposalMsg")
         block = Block.from_tuple(*block)
-        output("Block DONE")
+        # output("Block DONE")
         tc = None if not tc else TC(*tc)
-        output("tc DONE")
-        output("HIGH COMMIT QC", high_commit_qc)
+        # output("tc DONE")
+        # output("HIGH COMMIT QC", high_commit_qc)
         high_commit_qc = QC.from_tuple(*high_commit_qc)
-        output("qc DONE")
         proposal_msg = ProposalMsg(block, tc, high_commit_qc, signature, sender)
-        output("ProposalMsg DONE")
+        output("Formatted / validated. Processing ProposalMsg")
         process_proposal_msg(proposal_msg)
 
     def receive(msg=('VoteMsg', _, _, _, _, _)):
@@ -120,6 +123,7 @@ class Validator(process):
 
     def receive(msg=('Propose', round_no, id, message_content)):
         self.mempool.try_to_add_to_mempool(('Propose', round_no, id, message_content))
-        output("Received message for round ", round_no, "from client ", id)
+        output("handling message in receive queue")
+        output("Received message for round ", round_no, "from client ", id,  "message content is ", message_content)
         # self.mempool.commit_to_cache(round_no, id, 'Comitted ' + str(round_no) + ' - ' + str(id))
         # send(('Comitted', round_no, 'Comitted ' + str(round_no) + ' - ' + str(id)), to=c)

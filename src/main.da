@@ -64,7 +64,7 @@ class RunDiem(process):
 def main():
     config(channel = 'fifo', clock='Lamport')
     # list of configurations
-    configs = [{'n_clients': 1, 'n_client_reqs': 3, 'client_tmo': 10, 
+    configs = [{'n_clients': 2, 'n_client_reqs': 3, 'client_tmo': 10, 
     'n_validators': 1, 'validator_rtt': 5}]
     # running test cases with listed configs
     for i, config in enumerate(configs):

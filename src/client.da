@@ -16,9 +16,9 @@ class Client(process):
 
     def run():
         while(round_no <= n_client_reqs):    
-            send(("Propose" , round_no, id , "Client" + str(id) + "-" + str(round_no)), to=validators)
+            send(("Propose" , round_no, c_id , "Client" + str(c_id) + "-" + str(round_no)), to=validators)
             if await(done):
-                output("Round " + str(round_no)+ " done on client "+ str(id) + " with value " + answer[round_no] + " onto round " + str(round_no+1))
+                output("Round " + str(round_no)+ " done on client "+ str(c_id) + " with value " + answer[round_no] + " onto round " + str(round_no+1))
                 round_no = round_no + 1
                 comitted_nodes.clear()
                 comitted_answer.clear()
@@ -29,7 +29,7 @@ class Client(process):
         send(('Done',), to= validators)
 
     def receive(msg=('Comitted', i, message_content), from_=p):
-        if(i==(round_no)):
+        if i==(round_no):
             if(p not in comitted_nodes):
                 comitted_nodes.add(p)
                 if message_content not in comitted_answer:

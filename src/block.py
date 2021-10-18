@@ -148,21 +148,22 @@ class PendingBlockTree:
 
     def prune(self, block_id):
         print("Prune started")
+        if not self._ids_to_block.get(block_id):
+            return None
         node = self.get_state_by_block_id(block_id)
         nodes_pending_commit = []
-        print("node", node)
-        # print("blocks", self._ids_to_block)
         while node.parent != None:
             nodes_pending_commit.append(node)
             node = node.parent
         nodes_pending_commit = nodes_pending_commit[::-1]
-        print("nodes pending commit", nodes_pending_commit)
         # TODO: Write nodes to file
         # self._ledger.writelines(list(map(str, nodes_pending_commit)))
         # with open(self._ledger_file_name, 'a+') as f:
         #     f.writelines(list(map(str, nodes_pending_commit)))
         # print(self._ledger)
         # prune other branches
+        if len(nodes_pending_commit) == 0:
+            return None
         new_root = nodes_pending_commit[0]
         new_root.parent = None
         self._root = new_root
@@ -216,6 +217,7 @@ class BlockTree:
         print("Process QC started")
         if qc.ledger_commit_info.commit_state_id != None:
             self.ledger.commit(qc.vote_info.parent_block_id)
+            # print("Commit done")
             self.pending_block_tree.prune(qc.vote_info.parent_block_id)
             # high_commit_qc = max_round(qc, high_commit_qc)
             if qc.vote_info.round > self.high_commit_qc.vote_info.round:
@@ -263,7 +265,7 @@ if __name__ == "__main__":
         ['1', '2', '3', '7'],
         1
     )
-    ledger = Ledger(ledger_file_name=f'ledger-{validator_info.author}.log',
+    ledger = Ledger(ledger_file_name=f'ledgers/ledger-{validator_info.author}.log',
     n_validators=len(validator_info.validator_pks))
     block_tree = BlockTree(ledger, validator_info)
     block_tree.generate_block('HELLO', 0)

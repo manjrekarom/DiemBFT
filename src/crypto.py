@@ -22,7 +22,7 @@ def sign(private_key: SigningKey, *items):
     if len(items) == 0:
         raise Exception('No items provided') 
     msg = '|||'.join(items)
-    print('Msg', msg)
+    # print('Msg', msg)
     if len(msg.strip()) == 0:
         raise Exception('Empty string provided to sign') 
     return private_key.sign(msg.encode('utf-8'), encoder=_encoder).decode('utf-8')
