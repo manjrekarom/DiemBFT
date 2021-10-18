@@ -76,8 +76,9 @@ class SpeculationTree:
 class Ledger:
     _speculation_tree: 'SpeculationTree'
     _ledger_file_name: str
+    _committed_states: Dict['str', 'State'] = {}
 
-    def __init__(self, root=None, ledger_file_name='log/ledger.log', 
+    def __init__(self, root=None, ledger_file_name='ledger/ledger.log', 
     n_validators=None) -> None:
         # TODO: if file exists read the last line
         # create genesys state
@@ -90,10 +91,11 @@ class Ledger:
             root = bs1[1]
         self._ledger_file_name = ledger_file_name
         if not ledger_file_name:
-            self._ledger_file_name = 'log/ledger.log'
+            self._ledger_file_name = 'ledger/ledger.log'
         # self._ledger = TemporaryFile('a+')
         # self._ledger = open('ledger.log', 'a+')
         self._speculation_tree = SpeculationTree(root)
+        self._committed_states[root.block_id] = root
 
     def speculate(self, prev_block_id: int, block_id: int, txns: str):
         prev_state = self._speculation_tree.get_state_by_block_id(prev_block_id)
@@ -101,32 +103,37 @@ class Ledger:
         self._speculation_tree.add_node(prev_state, new_state)
         return new_state.state_id
 
-    def commit(self, block_id):
-        # keep looping until parent == null
-        if not self._speculation_tree._ids_to_state.get(block_id):
-            return None
-        node = self._speculation_tree.get_state_by_block_id(block_id)
+    def commit(self, block_id) -> 'State':
+        # keep looping until parent == null'
+        state = self._speculation_tree.get_state_by_block_id(block_id)
+        print("ledger.commit", state)
+        if not state:
+            return
+        self._committed_states[block_id] = state
         # print("all nodes", self._speculation_tree._ids_to_state)
         nodes_pending_commit = []
+        node = state
         while node.parent != None:
             nodes_pending_commit.append(node)
             node = node.parent
         nodes_pending_commit = nodes_pending_commit[::-1]
-        # TODO: Write nodes to file
-        # self._ledger.writelines(list(map(str, nodes_pending_commit)))
-        with open(self._ledger_file_name, 'a+') as f:
-            f.writelines(list(map(State.pprint, nodes_pending_commit)))
-        # prune other branches
-        # print('Nodes pending commit', nodes_pending_commit)
-        print("Payload / State value", self._speculation_tree._ids_to_state.get(block_id).state_value)
-        new_root = nodes_pending_commit[0]
-        new_root.parent = None
-        self._speculation_tree = SpeculationTree(nodes_pending_commit[0])
-        print("Committed")
-        # return self._speculation_tree
+        if len(nodes_pending_commit) > 0:
+            # TODO: Write nodes to file
+            # self._ledger.writelines(list(map(str, nodes_pending_commit)))
+            with open(self._ledger_file_name, 'a+') as f:
+                f.writelines(list(map(State.pprint, nodes_pending_commit)))
+            # prune other branches
+            new_root = nodes_pending_commit[0]
+            new_root.parent = None
+            self._speculation_tree = SpeculationTree(nodes_pending_commit[0])
+            print("Committed")
+        return state
 
     def pending_state(self, block_id):
         return self._speculation_tree.get_state_by_block_id(block_id)
+
+    def committed_block(self, block_id):
+        return self._committed_states.get(block_id)
 
 
 # if __name__ == "__main__":

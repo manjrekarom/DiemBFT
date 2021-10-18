@@ -43,11 +43,7 @@ class RunDiem(process):
         for v_id, validator in enumerate(validators):
             # name = validator_name(i)
             setup(validator, (v_id, validator_priv[v_id], validator_pub, 
-            client_pub, validators, validator_rtt))
-        # validators
-        # validators_dict = {}
-        # for i in range(validators):
-        #     validators_dict[validator_name(i)] = validators[i]
+            client_pub, validators, clients, validator_rtt))
         for c_id, client in enumerate(clients):
             # name = self.client_name(i)
             setup(client, (c_id, client_priv[c_id], validator_pub, validators, 
@@ -64,7 +60,7 @@ class RunDiem(process):
 def main():
     config(channel = 'fifo', clock='Lamport')
     # list of configurations
-    configs = [{'n_clients': 2, 'n_client_reqs': 3, 'client_tmo': 10, 
+    configs = [{'n_clients': 1, 'n_client_reqs': 3, 'client_tmo': 10, 
     'n_validators': 1, 'validator_rtt': 5}]
     # running test cases with listed configs
     for i, config in enumerate(configs):

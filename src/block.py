@@ -29,11 +29,8 @@ class VoteInfo:
 
 @dataclass
 class LedgerCommitInfo:
-    commit_state_id: int
+    commit_state_id: str
     vote_info_hash: str
-
-    def from_tuple(commit_state_id, vote_info_hash):
-        return LedgerCommitInfo(commit_state_id, vote_info_hash)
 
     @staticmethod
     def to_tuple(obj):
@@ -78,7 +75,7 @@ class VoteMsg:
     @staticmethod
     def from_tuple(vote_info, ledger_commit_info, high_commit_qc, sender, signature):
         vote_info = VoteInfo.from_tuple(vote_info)
-        ledger_commit_info = LedgerCommitInfo.from_tuple(ledger_commit_info)
+        ledger_commit_info = LedgerCommitInfo(*ledger_commit_info)
         qc = QC.from_tuple(high_commit_qc)
         return VoteMsg(vote_info, ledger_commit_info, qc, sender, signature)
 
@@ -86,9 +83,9 @@ class VoteMsg:
     def to_tuple(obj):
         if not obj:
             return None
-        return ('VoteMsg', obj.vote_info.to_tuple(), 
-        obj.ledger_commit_info.to_tuple(), obj.high_commit_qc.to_tuple(), 
-        obj.sender, obj.signature)
+        return ('VoteMsg', VoteInfo.to_tuple(obj.vote_info), 
+        LedgerCommitInfo.to_tuple(obj.ledger_commit_info), 
+        QC.to_tuple(obj.high_commit_qc), obj.sender, obj.signature)
 
 
 @dataclass
@@ -203,20 +200,22 @@ class BlockTree:
         self.pending_block_tree.add(bs2[0])
         self.pending_block_tree.add(bs3[0])
         # construct QC for 3rd object
-        vi = VoteInfo(bs3[0].block_id, bs3[0].round, bs2[0].block_id, bs2[0].round, bs3[1].state_id)
+        vi = VoteInfo(bs3[0].block_id, bs3[0].round, bs2[0].block_id, 
+        bs2[0].round, bs3[1].state_id)
         lci = LedgerCommitInfo(bs3[1].state_id, None)
         self.high_qc = QC(vi, lci, None, self.validator_info.author, None)
-        self.high_commit_qc = bs3[0].qc
+        self.high_commit_qc = self.high_qc
         self.pending_votes = defaultdict(set)
 
-    def process_qc(self, qc: 'QC'):
+    def process_qc(self, qc: 'QC') -> 'State':
         """
         process_qc is used to commit a state to ledger. It is called when 
         a proposal or timeout message or a vote comes.
         """
         print("Process QC started")
+        committed_state = None
         if qc.ledger_commit_info.commit_state_id != None:
-            self.ledger.commit(qc.vote_info.parent_block_id)
+            committed_state = self.ledger.commit(qc.vote_info.parent_block_id)
             # print("Commit done")
             self.pending_block_tree.prune(qc.vote_info.parent_block_id)
             # high_commit_qc = max_round(qc, high_commit_qc)
@@ -226,11 +225,15 @@ class BlockTree:
         if qc.vote_info.round > self.high_qc.vote_info.round:
             self.high_qc = qc
         print("Process QC Done")
+        return committed_state
 
     def execute_and_insert(self, block: Block):
+        print("Exec and insert in blocktree:", block.block_id)
         self.ledger.speculate(block.qc.vote_info.block_id, block.block_id, 
         block.payload)
         self.pending_block_tree.add(block)
+        print("Block in Tree", self.pending_block_tree.get_state_by_block_id(
+            block.block_id))
 
     def process_vote(self, vote_msg: VoteMsg):
         self.process_qc(vote_msg.high_commit_qc)
@@ -240,10 +243,11 @@ class BlockTree:
         if len(self.pending_votes[vote_idx]) == 2 * self.validator_info.f + 1:
             signatures = self.pending_votes[vote_idx]
             qc = QC(vote_info=vote_msg.vote_info, 
-                ledger_commit_info=vote_msg.ledger_commit_info.commit_state_id, 
+                ledger_commit_info=vote_msg.ledger_commit_info, 
                 signatures=self.pending_votes[vote_idx], 
                 author=self.validator_info.author, 
-                author_signature=sign(signatures, self.validator_info.private_key))
+                author_signature=sign(self.validator_info.private_key, signatures))
+            print("Created QC for vote")
             return qc
         return None
 

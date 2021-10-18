@@ -11,13 +11,11 @@ class Pacemaker:
         return None
 
     def advance_round_qc(self, qc: 'QC'):
-        print("Advance round qc started")
         # print("QC", qc)
         if qc.vote_info.round < self.current_round:
             return False
         self.last_round_tc = None
         self.current_round = qc.vote_info.round + 1
-        print("Advance round qc done")
         return True
 
     def advance_round_tc(self, qc: QC):

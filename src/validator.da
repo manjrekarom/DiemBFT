@@ -1,16 +1,17 @@
-from src.crypto import sign
+# from src.crypto import sign
 from src.ledger import Ledger
 from src.safety import Safety
-from src.block import QC, Block, BlockTree
 from src.mempool import MemPool
 from src.info import ValidatorInfo
 from src.pacemaker import Pacemaker
 from src.messages import TC, ProposalMsg
 from src.leader_election import LeaderElection
+from src.block import QC, Block, LedgerCommitInfo, VoteInfo, VoteMsg, BlockTree
 
 
 class Validator(process):
-    def setup(author, priv_key, validator_pub, client_pub, validators, rtt):
+    def setup(author, priv_key, validator_pub, client_pub, validators, clients,
+    rtt):
         #self.broadcast = servers
         self.validator_info = ValidatorInfo(
             author=author,
@@ -31,32 +32,46 @@ class Validator(process):
         self.validators = validators
         self.rtt = rtt
 
+    def send_to_client(state):
+        output("Send state to client", state)
+        if not state:
+            output("State is None; Nothing to send")
+        try:
+            c_id = int(state.state_value.split('-')[0][-1])
+            seq_no = int(state.state_value.split('-')[1])
+            output("Sending from validator to client", c_id, "message", 
+            state.state_value)
+            send(('Committed', seq_no, state.state_value), to=clients[c_id])
+        except:
+            output("Can't parse output")
+
     def process_certificate_qc(qc):
         # output("before processing QC", qc)
-        block_tree.process_qc(qc)
+        committed_state = block_tree.process_qc(qc)
+        send_to_client(committed_state)
         output("process_qc done")
         leader_election.update_leaders(qc)
-        output("update leaders done")
+        output("Update leaders done")
         pacemaker.advance_round_qc(qc)
-        output("advance round qc done")
+        output("Advance round qc done", pacemaker.current_round)
     
     def process_proposal_msg(proposal_msg):
-        output("1")
+        output("Processing ProposalMsg started")
         process_certificate_qc(proposal_msg.block.qc)
-        output("2")
         process_certificate_qc(proposal_msg.high_commit_qc)
-        output("3")
         pacemaker.advance_round_tc(proposal_msg.last_round_tc)
-        round = pacemaker.current_round
-        output("4")
-        leader = leader_election.get_leader(round)
-        output("5")
-        if proposal_msg.block.round != round or proposal_msg.sender != leader or proposal_msg.block.author != leader:
+        curr_round = pacemaker.current_round
+        leader = leader_election.get_leader(curr_round)
+        if proposal_msg.block.round != curr_round or proposal_msg.sender != \
+            leader or proposal_msg.block.author != leader:
             return
-        self.block_tree.execute_and_insert(proposal_msg)
-        vote_msg = safety.make_vote(proposal_msg.block,proposal_msg.last_round_tc)
+        block_tree.execute_and_insert(proposal_msg.block)
+        output("Inserted block in block tree")
+        vote_msg = safety.make_vote(proposal_msg.block, proposal_msg.last_round_tc)
         if vote_msg is not None:
-            send(vote_msg.to_tuple(), to=leader_election.LeaderElection.get_leader(round+1))
+            # output("Insert block in block tree")
+            next_round_leader = leader_election.get_leader(curr_round+1)
+            send(VoteMsg.to_tuple(vote_msg), to=list(validators)[next_round_leader])
     
     def process_timeout_msg(timeout_msg):
         process_certificate_qc(timeout_msg.tmo_info.high_qc)
@@ -68,11 +83,12 @@ class Validator(process):
             process_new_round_event(tc)
     
     def process_vote_msg(vote_msg):
+        output("Processing vote msg")
         qc = block_tree.process_vote(vote_msg)
         if qc is not None:
             process_certificate_qc(qc)
             process_new_round_event(None)
-    
+
     def process_new_round_event(last_tc):
         leader = leader_election.get_leader(pacemaker.current_round)
         output("Leader of this round is:", leader)
@@ -84,7 +100,7 @@ class Validator(process):
             block = block_tree.generate_block(txns, pacemaker.current_round)
             output("block", block.block_id)
             proposal_msg = ProposalMsg(block, last_tc, block_tree.high_commit_qc, 
-            '', '')
+            '', author)
             send(ProposalMsg.to_tuple(proposal_msg), to=validators)
 
     def run():
@@ -114,8 +130,13 @@ class Validator(process):
         output("Formatted / validated. Processing ProposalMsg")
         process_proposal_msg(proposal_msg)
 
-    def receive(msg=('VoteMsg', _, _, _, _, _)):
-        process_vote_msg(msg)
+    def receive(msg=('VoteMsg', vi, lci, hc_qc, sender, signature)):
+        vote_info = VoteInfo(*vi)
+        ledger_commit_info = LedgerCommitInfo(*lci)
+        qc = QC.from_tuple(*hc_qc)
+        vote_msg = VoteMsg(vote_info, ledger_commit_info, qc, sender, 
+        signature)
+        process_vote_msg(vote_msg)
 
     def receive(msg=('TimeoutMsg')):
         # process_timeout_message(msg)
