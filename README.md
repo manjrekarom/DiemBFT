@@ -11,11 +11,11 @@ Implementation of the Diem consensus protocol version 4 running on Diem blockcha
 
 ## Workload Generation
 main.da contains the implementation of the workload generation
-- n_clients = config['n_clients']
-- n_client_reqs = config['n_client_reqs']
-- client_tmo = config['client_tmo']
-- n_validators = config['n_validators']
-- validator_rtt = config['validator_rtt']
+- n_clients : Number of Clients
+- n_client_reqs : Number of Client Request
+- client_tmo : Client timeout value
+- n_validators : Number of Validators
+- validator_rtt : Validators round trip time
 
 
 
@@ -24,6 +24,8 @@ Client-round-trip-time :
 Validator-timeout : 
 
 ## Bugs and Limitations
+- TimeOut is not implemented
+- Signature and Verification not implemented
 
 ## Main Files
 1. DiemBFT/src/client.da
