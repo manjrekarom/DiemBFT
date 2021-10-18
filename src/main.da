@@ -1,5 +1,7 @@
 import os
+import sys
 import glob
+import json
 
 from nacl.signing import SigningKey
 from nacl.encoding import Base64Encoder
@@ -61,10 +63,19 @@ class RunDiem(process):
 
 
 def main():
-    config(channel = 'fifo', clock='Lamport')
+    if len(sys.argv) > 1:
+        # print(sys.argv[1])
+        if os.path.exists(sys.argv[1]):
+            config_filename = sys.argv[1]
+            with open(config_filename, 'r+') as f:
+                config_dict = json.load(f)
+        else:
+            print("Specified file doesn't exist")
+            exit(1)
+    config(channel='fifo', clock='Lamport')
     # list of configurations
     configs = [{'n_clients': 1, 'n_client_reqs': 3, 'client_tmo': 10, 
-    'n_validators': 3, 'validator_rtt': 5}]
+    'n_validators': 3, 'validator_rtt': 5}] if not config_dict else config_dict
     # delete old ledgers
     for log in glob.glob('ledgers/*.log'):
         os.remove(log)
