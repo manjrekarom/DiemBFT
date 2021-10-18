@@ -7,12 +7,15 @@ class Client(process):
     """
     Client class to communicate with validators
     """
-    def setup(c_id, client_priv, validator_pub, validators: set, n_client_reqs: int, client_tmo: float):
+    def setup(c_id, client_priv, validator_pub, validators: set, n_client_reqs: int, 
+    client_tmo: float):
         self.round_no = 1
         self.comitted_nodes = set()
         self.comitted_answer= dict()
         self.answer= dict()
         self.done = False
+        self.unique_replies = 0
+        self.total_validators = len(validator_pub)
 
     def run():
         while round_no <= n_client_reqs:    

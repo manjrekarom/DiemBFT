@@ -1,3 +1,6 @@
+import os
+import glob
+
 from nacl.signing import SigningKey
 from nacl.encoding import Base64Encoder
 
@@ -62,6 +65,9 @@ def main():
     # list of configurations
     configs = [{'n_clients': 1, 'n_client_reqs': 3, 'client_tmo': 10, 
     'n_validators': 3, 'validator_rtt': 5}]
+    # delete old ledgers
+    for log in glob.glob('ledgers/*.log'):
+        os.remove(log)
     # running test cases with listed configs
     for i, config in enumerate(configs):
         test_case = new(RunDiem)

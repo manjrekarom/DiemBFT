@@ -30,6 +30,8 @@ class Validator(process):
         self.pacemaker = Pacemaker()
         self.validators = validators
         self.rtt = rtt
+        self.contiguous_dummies = 0
+        # self.client_latest[]
 
     def send_to_client(state):
         output("Send state to client", state)
@@ -96,23 +98,25 @@ class Validator(process):
         # print(self.mempool.dq)
         if leader == author:
             output("Fetching transactions")
-            txns = self.mempool.get_transactions()
-            # sent(('Committed', _, 'DUMMY'))
+            txns = mempool.get_transactions()
+            # if txns == 'DUMMY':
+            #     contiguous_dummies += 1
+            # else:
+            #     contiguous_dummies = 0
+            # if contiguous_dummies > 2:
+            #     await(some(received(('Propose', _, _, _))))
             output("Making block")
-            block = block_tree.generate_block(txns, pacemaker.current_round)
+            block = block_tree.generate_block(mempool.get_transactions(), 
+            pacemaker.current_round)
             output("Making ProposalMsg")
             proposal_msg = ProposalMsg(block, last_tc, block_tree.high_commit_qc, 
             '', author)
             send(ProposalMsg.to_tuple(proposal_msg), to=validators)
 
     def run():
-        # await(1 == 0)
-        # while(1):
-        # process never stops
         if author == 0:
             if await(some(received(('Propose', _, _, _)))):
                 process_new_round_event(None)
-        
         if await(len(setof(c, received(('Done'), from_=c))) >= len(client_pub)):
             reset(received)
 
@@ -144,10 +148,10 @@ class Validator(process):
         raise NotImplementedError
 
     def receive(msg=('Propose', round_no, id, message_content), from_=client):
-        cache = self.mempool.try_to_add_to_mempool(('Propose', round_no, id, message_content))
-        if cache:
-            send_to_client(cache)
+        cached_state = mempool.try_to_add_to_mempool(('Propose', round_no, id, message_content))
+        if cached_state:
+            send_to_client(cached_state)
         output("handling message in receive queue")
-        output("Received message for round ", round_no, "from client ", id,  "message content is ", message_content)
+        output("Received message for round", round_no, "from client", id,  "message content is", message_content)
         # self.mempool.commit_to_cache(round_no, id, 'Comitted ' + str(round_no) + ' - ' + str(id))
         # send(('Comitted', round_no, 'Comitted ' + str(round_no) + ' - ' + str(id)), to=c)

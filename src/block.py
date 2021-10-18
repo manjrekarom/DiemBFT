@@ -8,7 +8,17 @@ from src.crypto import hasher, sign
 from src.genesys import initialize_block_and_state
 from src.ledger import Ledger
 
-logger = logging.getLogger()
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
+# create console handler and set level to debug
+ch = logging.StreamHandler()
+ch.setLevel(logging.DEBUG)
+# create formatter
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+# add formatter to ch
+ch.setFormatter(formatter)
+# add ch to logger
+logger.addHandler(ch)
 
 @dataclass
 class VoteInfo:
@@ -20,7 +30,7 @@ class VoteInfo:
 
     @staticmethod
     def to_tuple(obj):
-        # print("WARNING:")
+        # logger.info("WARNING:")
         if not obj:
             return None
         return (obj.block_id, obj.round, obj.parent_block_id, obj.parent_round, 
@@ -134,7 +144,7 @@ class PendingBlockTree:
 
     def make_ids_to_block_from_root(self, root):
         # bfs on root
-        print("Make ids")
+        logger.info("Make ids")
         dq = deque([root])
         hm = {}
         while len(dq):
@@ -145,7 +155,7 @@ class PendingBlockTree:
         return hm
 
     def prune(self, block_id):
-        print("Prune started")
+        logger.info("Prune started")
         if not self._ids_to_block.get(block_id):
             return None
         node = self.get_state_by_block_id(block_id)
@@ -158,7 +168,7 @@ class PendingBlockTree:
         # self._ledger.writelines(list(map(str, nodes_pending_commit)))
         # with open(self._ledger_file_name, 'a+') as f:
         #     f.writelines(list(map(str, nodes_pending_commit)))
-        # print(self._ledger)
+        # logger.info(self._ledger)
         # prune other branches
         if len(nodes_pending_commit) == 0:
             return None
@@ -167,7 +177,7 @@ class PendingBlockTree:
         self._root = new_root
         self.make_ids_to_block_from_root(self._root)
         # return self._speculation_tree
-        print("Prune finished")
+        logger.info("Prune finished")
 
     def add(self, block: Block):
         parent_block_id = block.qc.vote_info.block_id
@@ -213,11 +223,11 @@ class BlockTree:
         process_qc is used to commit a state to ledger. It is called when 
         a proposal or timeout message or a vote comes.
         """
-        print("Process QC started")
+        logger.info("Process QC started")
         committed_state = None
         if qc.ledger_commit_info.commit_state_id != None:
             committed_state = self.ledger.commit(qc.vote_info.parent_block_id)
-            # print("Commit done")
+            # logger.info("Commit done")
             self.pending_block_tree.prune(qc.vote_info.parent_block_id)
             # high_commit_qc = max_round(qc, high_commit_qc)
             if qc.vote_info.round > self.high_commit_qc.vote_info.round:
@@ -225,16 +235,16 @@ class BlockTree:
         # high_qc = max_round(qc, high_qc)
         if qc.vote_info.round > self.high_qc.vote_info.round:
             self.high_qc = qc
-        print("Process QC Done")
+        logger.info("Process QC Done")
         return committed_state
 
     def execute_and_insert(self, block: Block):
-        print("Exec and insert in blocktree:", block.block_id)
+        logger.info(f"Exec and insert in blocktree: {block.block_id}")
         self.ledger.speculate(block.qc.vote_info.block_id, block.block_id, 
         block.payload)
         self.pending_block_tree.add(block)
-        print("Block in Tree", self.pending_block_tree.get_state_by_block_id(
-            block.block_id))
+        logger.info(f"""Block in Tree {self.pending_block_tree.get_state_by_block_id(
+            block.block_id)}""")
 
     def process_vote(self, vote_msg: VoteMsg):
         self.process_qc(vote_msg.high_commit_qc)
@@ -248,7 +258,7 @@ class BlockTree:
                 signatures=self.pending_votes[vote_idx], 
                 author=self.validator_info.author, 
                 author_signature=sign(self.validator_info.private_key, signatures))
-            print("Created QC for vote")
+            logger.info("Created QC for vote")
             return qc
         return None
 
