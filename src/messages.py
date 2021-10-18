@@ -23,10 +23,11 @@ class TC:
     tmo_signatures: Set[str]  # A vector of 2f + 1 validator signatures on 
     # (round, respective high qc round)
 
-    def to_tuple(self):
-        if not self:
+    @staticmethod
+    def to_tuple(obj):
+        if not obj:
             return None
-        return (self.round, self.tmo_high_qc_rounds, self.tmo_signatures)
+        return (obj.round, obj.tmo_high_qc_rounds, obj.tmo_signatures)
 
 
 @dataclass
@@ -47,9 +48,11 @@ class ProposalMsg:
     signature: str
     sender : str
 
-    def to_tuple(self):
-        if not self:
+    @staticmethod
+    def to_tuple(obj):
+        if not obj:
             return None
         # output("last_round_tc", self.last_round_tc)
-        return ('ProposalMsg', self.block.to_tuple(), self.last_round_tc.to_tuple(),
-        self.high_commit_qc.to_tuple(), self.signature, self.sender)
+        return ('ProposalMsg', Block.to_tuple(obj.block), 
+        TC.to_tuple(obj.last_round_tc), QC.to_tuple(obj.high_commit_qc), 
+        obj.signature, obj.sender)

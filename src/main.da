@@ -43,7 +43,7 @@ class RunDiem(process):
         for v_id, validator in enumerate(validators):
             # name = validator_name(i)
             setup(validator, (v_id, validator_priv[v_id], validator_pub, 
-            client_pub, validator_rtt))
+            client_pub, validators, validator_rtt))
         # validators
         # validators_dict = {}
         # for i in range(validators):

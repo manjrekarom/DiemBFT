@@ -72,7 +72,8 @@ class Ledger:
     _speculation_tree: 'SpeculationTree'
     _ledger_file_name: str
 
-    def __init__(self, root=None, ledger_file_name='ledger.log', n_validators=None) -> None:
+    def __init__(self, root=None, ledger_file_name='ledger.log', 
+    n_validators=None) -> None:
         # TODO: if file exists read the last line
         # create genesys state
         if not root:
@@ -98,6 +99,8 @@ class Ledger:
     def commit(self, block_id):
         # keep looping until parent == null
         node = self._speculation_tree.get_state_by_block_id(block_id)
+        print("node", node.state_value)
+        print("all nodes", self._speculation_tree._ids_to_state)
         nodes_pending_commit = []
         while node.parent != None:
             nodes_pending_commit.append(node)
@@ -108,9 +111,11 @@ class Ledger:
         with open(self._ledger_file_name, 'a+') as f:
             f.writelines(list(map(str, nodes_pending_commit)))
         # prune other branches
+        print('Nodes pending commit', nodes_pending_commit)
         new_root = nodes_pending_commit[0]
         new_root.parent = None
         self._speculation_tree = SpeculationTree(nodes_pending_commit[0])
+        print("COMMITED")
         # return self._speculation_tree
 
     def pending_state(self, block_id):

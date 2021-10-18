@@ -1,15 +1,16 @@
+from src.crypto import sign
 from src.ledger import Ledger
-from src.messages import ProposalMsg
 from src.safety import Safety
-from src.block import BlockTree, VoteMsg
+from src.block import QC, Block, BlockTree
 from src.mempool import MemPool
 from src.info import ValidatorInfo
 from src.pacemaker import Pacemaker
+from src.messages import TC, ProposalMsg
 from src.leader_election import LeaderElection
 
 
 class Validator(process):
-    def setup(author, priv_key, validator_pub, client_pub, rtt):
+    def setup(author, priv_key, validator_pub, client_pub, validators, rtt):
         #self.broadcast = servers
         self.validator_info = ValidatorInfo(
             author=author,
@@ -19,26 +20,35 @@ class Validator(process):
             f=(len(validator_pub) - 1)//3
         )
         n_validators = len(self.validator_info.validator_pks)
-        self.ledger = Ledger(n_validators=n_validators)
+        self.ledger = Ledger(ledger_file_name=f'ledger-{self.validator_info.author}',
+        n_validators=n_validators)
         self.mempool = MemPool()
         self.block_tree = BlockTree(ledger, validator_info)
         output("HERE")
         self.safety = Safety(ledger, block_tree, validator_info)
         self.leader_election = LeaderElection(len(validator_pub))
         self.pacemaker = Pacemaker()
+        self.validators = validators
         self.rtt = rtt
 
     def process_certificate_qc(qc):
+        # output("before processing QC", qc)
         block_tree.process_qc(qc)
+        output("process_qc done")
         leader_election.update_leaders(qc)
-        packemaker.advance_round_qc(qc.vote_info.round)
+        pacemaker.advance_round_qc(qc)
     
     def process_proposal_msg(proposal_msg):
+        output("1")
         process_certificate_qc(proposal_msg.block.qc)
-        process_certificate_qc(proposal_msg.high_commit_qc.qc)
+        output("2")
+        process_certificate_qc(proposal_msg.high_commit_qc)
+        output("3")
         pacemaker.advance_round_tc(proposal_msg.last_round_tc)
         round = pacemaker.current_round
+        output("4")
         leader = leader_election.get_leader(round)
+        output("5")
         if proposal_msg.block.round != round or proposal_msg.sender != leader or proposal_msg.block.author != leader:
             return
         self.block_tree.execute_and_insert(proposal_msg)
@@ -65,15 +75,14 @@ class Validator(process):
         leader = leader_election.get_leader(pacemaker.current_round)
         output("Leader is ", leader)
         if leader == author:
-            # txns = self.mempool.get_transactions()
-            txns = '123'
+            txns = self.mempool.get_transactions()
+            # txns = '123'
             output("txns", txns)
             block = block_tree.generate_block(txns, pacemaker.current_round)
-            output("block", block)
-            # signature and sender
+            output("block", block.block_id)
             proposal_msg = ProposalMsg(block, last_tc, block_tree.high_commit_qc, 
             '', '')
-            send(proposal_msg.to_tuple(), to=broadcast)
+            send(ProposalMsg.to_tuple(proposal_msg), to=validators)
 
     def run():
         # await(1 == 0)
@@ -90,8 +99,17 @@ class Validator(process):
         raise NotImplementedError
         # pacemaker.local_timeout_round()
 
-    def receive(msg=('ProposalMsg', _, _, _, _, _)):
-        process_proposal_msg(msg)
+    def receive(msg=('ProposalMsg', block, tc, high_commit_qc, signature, sender)):
+        block = Block.from_tuple(*block)
+        output("Block DONE")
+        tc = None if not tc else TC(*tc)
+        output("tc DONE")
+        output("HIGH COMMIT QC", high_commit_qc)
+        high_commit_qc = QC.from_tuple(*high_commit_qc)
+        output("qc DONE")
+        proposal_msg = ProposalMsg(block, tc, high_commit_qc, signature, sender)
+        output("ProposalMsg DONE")
+        process_proposal_msg(proposal_msg)
 
     def receive(msg=('VoteMsg', _, _, _, _, _)):
         process_vote_msg(msg)

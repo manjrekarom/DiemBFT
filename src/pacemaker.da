@@ -1,4 +1,4 @@
-# from block import QC, Block
+from block import QC
 from messages import TimeoutMsg
 
 class Pacemaker:
@@ -10,12 +10,14 @@ class Pacemaker:
     def process_remote_timeout(self, tmo:TimeoutMsg):
         return None
 
-    def advance_round_qc(self, qc:QC):
-        if qc.vote_info.round < current_round:
+    def advance_round_qc(self, qc: 'QC'):
+        # print("Advance round qc started")
+        # print("QC", qc)
+        if qc.vote_info.round < self.current_round:
             return False
-        
-        last_round_tc = None
-        current_round = qc.vote_info.round + 1
+        # last_round_tc = None
+        # current_round = qc.vote_info.round + 1
+        print("Advance round qc done")
         return True
 
     def advance_round_tc(self, qc: QC):

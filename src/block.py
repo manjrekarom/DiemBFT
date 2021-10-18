@@ -8,6 +8,7 @@ from src.crypto import hasher, sign
 from src.genesys import initialize_block_and_state
 from src.ledger import Ledger
 
+logger = logging.getLogger()
 
 @dataclass
 class VoteInfo:
@@ -17,12 +18,13 @@ class VoteInfo:
     parent_round: int
     exec_state_id: str
 
-    def to_tuple(self):
+    @staticmethod
+    def to_tuple(obj):
         # print("WARNING:")
-        if not self:
+        if not obj:
             return None
-        return (self.block_id, self.round, self.parent_block_id, self.parent_round, 
-        self.exec_state_id)
+        return (obj.block_id, obj.round, obj.parent_block_id, obj.parent_round, 
+        obj.exec_state_id)
 
 
 @dataclass
@@ -33,8 +35,11 @@ class LedgerCommitInfo:
     def from_tuple(commit_state_id, vote_info_hash):
         return LedgerCommitInfo(commit_state_id, vote_info_hash)
 
-    def to_tuple(self):
-        return (self.commit_state_id, self.vote_info_hash)
+    @staticmethod
+    def to_tuple(obj):
+        if not obj:
+            return None
+        return (obj.commit_state_id, obj.vote_info_hash)
 
 
 @dataclass
@@ -52,11 +57,13 @@ class QC:
         return QC(vote_info, ledger_commit_info, signatures, author, 
         author_signature)
 
-    def to_tuple(self):
-        if not self:
+    @staticmethod
+    def to_tuple(obj):
+        if not obj:
             return None
-        return ('QC', self.vote_info.to_tuple(), self.ledger_commit_info.to_tuple(), 
-        self.signatures, self.author, self.author_signature)
+        return (VoteInfo.to_tuple(obj.vote_info), 
+        LedgerCommitInfo.to_tuple(obj.ledger_commit_info), 
+        obj.signatures, obj.author, obj.author_signature)
 
 
 @dataclass
@@ -75,10 +82,13 @@ class VoteMsg:
         qc = QC.from_tuple(high_commit_qc)
         return VoteMsg(vote_info, ledger_commit_info, qc, sender, signature)
 
-    def to_tuple(self):
-        return ('VoteMsg', self.vote_info.to_tuple(), 
-        self.ledger_commit_info.to_tuple, self.high_commit_qc.to_tuple(), 
-        self.sender, self.signature)
+    @staticmethod
+    def to_tuple(obj):
+        if not obj:
+            return None
+        return ('VoteMsg', obj.vote_info.to_tuple(), 
+        obj.ledger_commit_info.to_tuple(), obj.high_commit_qc.to_tuple(), 
+        obj.sender, obj.signature)
 
 
 @dataclass
@@ -89,11 +99,16 @@ class Block:
     qc: QC
     block_id: str
 
-    def to_tuple(self):
-        if not self:
+    @staticmethod
+    def from_tuple(author, round, payload, qc, block_id):
+        return Block(author, round, payload, QC.from_tuple(*qc), block_id)
+
+    @staticmethod
+    def to_tuple(obj):
+        if not obj:
             return None
-        return (self.author, self.round, self.payload, self.qc.to_tuple(), 
-        self.block_id)    
+        return (obj.author, obj.round, obj.payload, QC.to_tuple(obj.qc), 
+        obj.block_id)
 
 
 @dataclass
@@ -111,13 +126,13 @@ class PendingBlockTree:
     _root: PendingBlock
     _ids_to_block: Dict[str, PendingBlock]
 
-    def __init__(self, root=None) -> None:
+    def __init__(self, root: PendingBlock = None) -> None:
         assert root.parent == None
         self._root: PendingBlock = root
         self._ids_to_block: Dict[str, PendingBlock] = {}
         self._ids_to_block = self.make_ids_to_block_from_root(root)
 
-    def get_state_by_block_id(self, block_id):
+    def get_state_by_block_id(self, block_id) -> PendingBlock:
         return self._ids_to_block[block_id]
 
     def make_ids_to_block_from_root(self, root):
@@ -132,30 +147,37 @@ class PendingBlockTree:
         return hm
 
     def prune(self, block_id):
+        print("Prune started")
         node = self.get_state_by_block_id(block_id)
         nodes_pending_commit = []
+        print("node", node)
+        # print("blocks", self._ids_to_block)
         while node.parent != None:
             nodes_pending_commit.append(node)
             node = node.parent
         nodes_pending_commit = nodes_pending_commit[::-1]
+        print("nodes pending commit", nodes_pending_commit)
         # TODO: Write nodes to file
         # self._ledger.writelines(list(map(str, nodes_pending_commit)))
-        with open(self._ledger_file_name, 'a+') as f:
-            f.writelines(list(map(str, nodes_pending_commit)))
+        # with open(self._ledger_file_name, 'a+') as f:
+        #     f.writelines(list(map(str, nodes_pending_commit)))
         # print(self._ledger)
         # prune other branches
         new_root = nodes_pending_commit[0]
         new_root.parent = None
-        self._speculation_tree = PendingBlockTree(nodes_pending_commit[0])
+        self._root = new_root
+        self.make_ids_to_block_from_root(self._root)
         # return self._speculation_tree
+        print("Prune finished")
 
     def add(self, block: Block):
         parent_block_id = block.qc.vote_info.block_id
-        assert self._ids_to_block[block.qc.vote_info.block_id] != None
+        assert self._ids_to_block[parent_block_id] != None
         parent_pending_block = self._ids_to_block[parent_block_id]
         if not parent_pending_block.children:
             parent_pending_block.children = []
-        pending_block = PendingBlock(block, parent_block_id, [])
+        pending_block = PendingBlock(block, parent_pending_block, [])
+        self._ids_to_block[pending_block.block.block_id] = pending_block
         parent_pending_block.children.append(pending_block)
 
 
@@ -172,15 +194,6 @@ class BlockTree:
         # TODO: Initialize better
         self.ledger = ledger
         self.validator_info = validator_info
-        # create genesys block
-        # if not root:
-        # genesys
-        # b_id = hasher(99999999, 0, 'GENESYS', '', '')
-        # vote_info = VoteInfo(b_id, 0, None, None, 
-        # NoopTxnEngine.execute_transactions(None, b_id, 'GENESYS'))
-        # b = Block(99999999, 0, 'GENESYS', None, b_id)
-        # root = PendingBlock(b, None, []) # Meaning of life, 
-        # universe and everything
         n_validators = len(validator_info.validator_pks)
         assert n_validators != None
         bs1, bs2, bs3 = initialize_block_and_state(n_validators)
@@ -188,8 +201,11 @@ class BlockTree:
         self.pending_block_tree = PendingBlockTree(root)
         self.pending_block_tree.add(bs2[0])
         self.pending_block_tree.add(bs3[0])
-        self.high_qc = bs3[0].qc
-        self.high_commit_qc = bs2[0].qc
+        # construct QC for 3rd object
+        vi = VoteInfo(bs3[0].block_id, bs3[0].round, bs2[0].block_id, bs2[0].round, bs3[1].state_id)
+        lci = LedgerCommitInfo(bs3[1].state_id, None)
+        self.high_qc = QC(vi, lci, None, self.validator_info.author, None)
+        self.high_commit_qc = bs3[0].qc
         self.pending_votes = defaultdict(set)
 
     def process_qc(self, qc: 'QC'):
@@ -197,6 +213,7 @@ class BlockTree:
         process_qc is used to commit a state to ledger. It is called when 
         a proposal or timeout message or a vote comes.
         """
+        print("Process QC started")
         if qc.ledger_commit_info.commit_state_id != None:
             self.ledger.commit(qc.vote_info.parent_block_id)
             self.pending_block_tree.prune(qc.vote_info.parent_block_id)
@@ -206,6 +223,7 @@ class BlockTree:
         # high_qc = max_round(qc, high_qc)
         if qc.vote_info.round > self.high_qc.vote_info.round:
             self.high_qc = qc
+        print("Process QC Done")
 
     def execute_and_insert(self, block: Block):
         self.ledger.speculate(block.qc.vote_info.block_id, block.block_id, 
@@ -217,7 +235,7 @@ class BlockTree:
         # TODO: replace with cryptographic hash
         vote_idx = hasher(vote_msg.ledger_commit_info)
         self.pending_votes[vote_idx].add(vote_msg.signature)
-        if len(self.pending_votes[vote_idx]) == 2 * f + 1:
+        if len(self.pending_votes[vote_idx]) == 2 * self.validator_info.f + 1:
             signatures = self.pending_votes[vote_idx]
             qc = QC(vote_info=vote_msg.vote_info, 
                 ledger_commit_info=vote_msg.ledger_commit_info.commit_state_id, 
@@ -238,7 +256,6 @@ class BlockTree:
 
 
 if __name__ == "__main__":
-    ledger = Ledger()
     validator_info = ValidatorInfo(
         0,
         ['1', '2', '3', '7'],
@@ -246,5 +263,8 @@ if __name__ == "__main__":
         ['1', '2', '3', '7'],
         1
     )
+    ledger = Ledger(ledger_file_name=f'ledger-{validator_info.author}.log',
+    n_validators=len(validator_info.validator_pks))
     block_tree = BlockTree(ledger, validator_info)
     block_tree.generate_block('HELLO', 0)
+    pass
