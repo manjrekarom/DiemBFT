@@ -63,6 +63,7 @@ class RunDiem(process):
 
 
 def main():
+    config_dict = None
     if len(sys.argv) > 1:
         # print(sys.argv[1])
         if os.path.exists(sys.argv[1]):
