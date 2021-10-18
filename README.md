@@ -40,6 +40,8 @@ Validator-timeout :
 
 ## Code Size
 
+We have used the cloc v1.90 in order to count the code size
+
 ## Language Feature Usage
 
 ## Contributions
