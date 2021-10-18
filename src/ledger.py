@@ -78,10 +78,11 @@ class Ledger:
     _ledger_file_name: str
     _committed_states: Dict['str', 'State'] = {}
 
-    def __init__(self, root=None, ledger_file_name='ledger/ledger.log', 
-    n_validators=None) -> None:
+    def __init__(self, root=None, ledger_file_name='ledgers/ledger.log', 
+    n_validators=None, log=True) -> None:
         # TODO: if file exists read the last line
         # create genesys state
+        self.log = log
         if not root:
             # genesys
             # root = State('42', '42', None, 'GENESYS', []) # Meaning of life, 
@@ -91,7 +92,7 @@ class Ledger:
             root = bs1[1]
         self._ledger_file_name = ledger_file_name
         if not ledger_file_name:
-            self._ledger_file_name = 'ledger/ledger.log'
+            self._ledger_file_name = 'ledgers/ledger.log'
         # self._ledger = TemporaryFile('a+')
         # self._ledger = open('ledger.log', 'a+')
         self._speculation_tree = SpeculationTree(root)
@@ -120,8 +121,9 @@ class Ledger:
         if len(nodes_pending_commit) > 0:
             # TODO: Write nodes to file
             # self._ledger.writelines(list(map(str, nodes_pending_commit)))
-            with open(self._ledger_file_name, 'a+') as f:
-                f.writelines(list(map(State.pprint, nodes_pending_commit)))
+            if self.log:
+                with open(self._ledger_file_name, 'a+') as f:
+                    f.writelines(list(map(State.pprint, nodes_pending_commit)))
             # prune other branches
             new_root = nodes_pending_commit[0]
             new_root.parent = None
