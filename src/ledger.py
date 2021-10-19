@@ -6,7 +6,7 @@ from dataclasses import dataclass
 # from src.block import Block
 from src.crypto import hasher
 from src.genesys import initialize_block_and_state
-
+import logging
 
 class NoopTxnEngine:
     """
@@ -49,8 +49,10 @@ class SpeculationTree:
         self._root: State = root
         self._ids_to_state: Dict[str, State] = {}
         self._ids_to_state = self.make_ids_to_state_from_root(root)
+        self.logger=logging.getLogger('DIEM')
 
     def add_node(self, prev_state, state):
+        self.logger.info(f"Node with state {state} is getting added to parent with state {prev_state}")
         self._ids_to_state[state.block_id] = state
         if not prev_state.children:
             prev_state.children = []
@@ -58,6 +60,7 @@ class SpeculationTree:
         state.parent = prev_state
 
     def get_state_by_block_id(self, block_id):
+        self.logger.info(f"Get State by block id {block_id}")
         return self._ids_to_state[block_id]
 
     def make_ids_to_state_from_root(self, root):
@@ -97,14 +100,18 @@ class Ledger:
         # self._ledger = open('ledger.log', 'a+')
         self._speculation_tree = SpeculationTree(root)
         self._committed_states[root.block_id] = root
+        self.logger=logging.getLogger('DIEM')
 
     def speculate(self, prev_block_id: int, block_id: int, txns: str):
+        self.logger.info(f"Speculate the new transaction")
         prev_state = self._speculation_tree.get_state_by_block_id(prev_block_id)
         new_state = NoopTxnEngine.execute_transactions(prev_state, block_id, txns)
         self._speculation_tree.add_node(prev_state, new_state)
+        self.logger.info(new_state.state_id)
         return new_state.state_id
 
     def commit(self, block_id) -> 'State':
+        self.logger.info(f"Commit the block id: {block_id}")
         # keep looping until parent == null'
         state = self._speculation_tree.get_state_by_block_id(block_id)
         print("ledger.commit", state)
@@ -129,12 +136,14 @@ class Ledger:
             new_root.parent = None
             self._speculation_tree = SpeculationTree(nodes_pending_commit[0])
             print("Committed")
+        self.logger.info(f"State is : {state}")
         return state
 
     def pending_state(self, block_id):
         return self._speculation_tree.get_state_by_block_id(block_id)
 
     def committed_block(self, block_id):
+        self.logger.info(f"Committed blockid is {block_id}")
         return self._committed_states.get(block_id)
 
 

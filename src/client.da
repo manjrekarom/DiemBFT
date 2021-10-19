@@ -3,6 +3,16 @@ import logging
 from random import random
 import mempool
 
+def get_logger(file_name):
+    logger = logging.getLogger('DIEM')
+    logger.setLevel(logging.INFO)
+    fh = logging.FileHandler(file_name)
+    fh.setLevel(logging.INFO)
+    formatter = logging.Formatter('-->%(asctime)s - %(name)s:%(levelname)s - %(message)s')
+    fh.setFormatter(formatter)
+    logger.addHandler(fh)
+    return logger
+
 class Client(process):
     """
     Client class to communicate with validators
@@ -16,6 +26,8 @@ class Client(process):
         self.done = False
         self.unique_replies = 0
         self.total_validators = len(validator_pub)
+        self.logger = get_logger(f'logs/Client-{c_id}.log')
+        logger = logging.getLogger('DIEM')
 
     def run():
         while round_no <= n_client_reqs:    
@@ -24,16 +36,18 @@ class Client(process):
             if await(done):
                 output("Round " + str(round_no)+ " done on client "+ str(c_id) + 
                 " with value " + answer[round_no] + " onto round " + str(round_no+1))
+                logger.info(f"Round  {str(round_no)} done on client {str(c_id)} with value {answer[round_no]} onto round {str(round_no+1)}")
                 round_no = round_no + 1
                 comitted_nodes.clear()
                 comitted_answer.clear()
                 done = False
             elif timeout(client_tmo):
-                output("Timing out for round ", round_no)
+                logger.info(f"Timing out for round  {round_no}")
         send(('Done',), to= validators)
+        logger.info(f"Sending Done all client requests to validators")
 
     def receive(msg=('Committed', i, message_content), from_=p):
-        output('Received reply from validator')
+        logger.info('Received reply from validator')
         if i == round_no:
             if p not in comitted_nodes:
                 comitted_nodes.add(p)
@@ -41,7 +55,7 @@ class Client(process):
                     comitted_answer[message_content]=1
                 else:
                     comitted_answer[message_content]+=1    
-                if(comitted_answer[message_content] >= (total_validators + 1) // 2):
-                    done = True
-                    answer[round_no] = message_content 
-                output("Client votes needed ", (total_validators + 1) // 2)
+            	#if(comitted_answer[message_content] >= (total_validators + 1) // 2):
+                done = True
+                answer[round_no] = message_content 
+                logger.info(f"Client votes needed {(total_validators + 1) // 2}")

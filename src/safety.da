@@ -4,7 +4,17 @@ from crypto import hasher, sign, valid_signatures
 from info import ValidatorInfo
 from messages import TC, TimeoutInfo
 from ledger import Ledger
+import logging
 
+def get_logger(file_name):
+    logger = logging.getLogger('DIEM')
+    logger.setLevel(logging.INFO)
+    fh = logging.FileHandler(file_name)
+    fh.setLevel(logging.INFO)
+    formatter = logging.Formatter('-->%(asctime)s - %(name)s:%(levelname)s - %(message)s')
+    fh.setFormatter(formatter)
+    logger.addHandler(fh)
+    return logger
 
 class Safety:
     _private_key: str
@@ -16,6 +26,7 @@ class Safety:
     _block_tree: BlockTree
     _validator_info: ValidatorInfo
 
+
     def __init__(self, ledger: Ledger, block_tree: BlockTree, 
     validator_info: ValidatorInfo) -> None:
         self._validator_info = validator_info
@@ -25,7 +36,9 @@ class Safety:
         self._block_tree = block_tree
         self._highest_vote_round = -1
         self._highest_qc_round = -1
+        logger=logging.getLogger('DIEM')
 
+    
     def _increase_highest_vote_round(self, round: int):
         self._highest_vote_round = max(round, self._highest_vote_round)
 
@@ -58,6 +71,7 @@ class Safety:
         return None
 
     def make_vote(self, block: Block, last_tc: TC):
+        #logger.info(f"Make Vote - {last_tc}")
         qc_round = block.qc.vote_info.round
         if valid_signatures(block, last_tc) and self._safe_to_vote(block.round, 
         qc_round, last_tc):
@@ -79,6 +93,7 @@ class Safety:
         return None
 
     def make_timeout(self, round: int, high_qc: QC, last_tc: TC):
+        logger.info(f"Make Timeout - {high_qc}")
         qc_round = high_qc.vote_info.round
         if valid_signatures(high_qc, last_tc) and \
             self._safe_to_timeout(round, qc_round, last_tc):
