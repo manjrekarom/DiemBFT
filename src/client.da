@@ -24,8 +24,6 @@ class Client(process):
         self.comitted_answer= dict()
         self.answer= dict()
         self.done = False
-        self.unique_replies = 0
-        self.total_validators = len(validator_pub)
         self.logger = get_logger(f'logs/Client-{c_id}.log')
         logger = logging.getLogger('DIEM')
 

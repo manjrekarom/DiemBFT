@@ -44,7 +44,4 @@ class MemPool:
         return f'{proposal_no}--{client_id}--{msg}'
         
     def commit_to_cache(self, proposal_no, client_id, executed_state):
-        self.logger.info("Commit to Cache")
-        _, _, message = executed_state.state_value.split('--')
-        self.dq.remove((proposal_no, client_id, message))
         self.done_requests[(proposal_no, client_id)] = executed_state
