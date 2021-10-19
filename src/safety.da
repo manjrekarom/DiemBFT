@@ -9,9 +9,9 @@ import logging
 def get_logger(file_name):
     logger = logging.getLogger('DIEM')
     logger.setLevel(logging.INFO)
-    fh = logging.FileHandler(file_name)
+    fh = logging.FileHandler(file_nam, mode='w+')
     fh.setLevel(logging.INFO)
-    formatter = logging.Formatter('-->%(asctime)s - %(name)s:%(levelname)s - %(message)s')
+    formatter = logging.Formatter('-->%(asctime)s -%(process)d - %(name)s:%(levelname)s - %(message)s')
     fh.setFormatter(formatter)
     logger.addHandler(fh)
     return logger

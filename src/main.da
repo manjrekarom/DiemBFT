@@ -76,9 +76,9 @@ def main():
     config(channel='fifo', clock='Lamport')
     # list of configurations
     configs = [{'n_clients': 3, 'n_client_reqs': 5, 'client_tmo': 10, 
-    'n_validators': 3, 'validator_rtt': 5}]
+    'n_validators': 3, 'validator_rtt': 5}] if not config_dict else config_dict
     # delete old ledgers and logs
-    for log in glob.glob('log/*.log'):
+    for log in glob.glob('logs/*.log'):
         os.remove(log)
     for log in glob.glob('ledgers/*.log'):
         os.remove(log)
